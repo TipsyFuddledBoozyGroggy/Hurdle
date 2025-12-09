@@ -3,8 +3,9 @@
 ## Core Technologies
 
 - **Language**: JavaScript (ES6+)
+- **Frontend Framework**: Vue 3 (Composition API)
 - **Runtime**: Node.js 18+
-- **Module System**: CommonJS (`module.exports` / `require`)
+- **Module System**: CommonJS for business logic (`module.exports` / `require`), ES6 modules for Vue
 - **Build Tool**: Webpack 5
 - **Transpiler**: Babel
 - **Testing**: Jest with jsdom environment
@@ -16,8 +17,8 @@
 - Entry point: `src/main.js`
 - Output: `dist/bundle.[contenthash].js` with cache busting
 - Dev server runs on port 3000 with hot module replacement
-- Plugins: HtmlWebpackPlugin, CopyWebpackPlugin
-- Loaders: babel-loader for JS, style-loader + css-loader for CSS
+- Plugins: HtmlWebpackPlugin, CopyWebpackPlugin, VueLoaderPlugin
+- Loaders: vue-loader for .vue files, babel-loader for JS, style-loader + css-loader for CSS
 
 ### Babel
 - Preset: @babel/preset-env

@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const { VueLoaderPlugin } = require('vue-loader');
 
 module.exports = {
   entry: './src/main.js',
@@ -11,6 +12,10 @@ module.exports = {
   },
   module: {
     rules: [
+      {
+        test: /\.vue$/,
+        loader: 'vue-loader'
+      },
       {
         test: /\.js$/,
         exclude: /node_modules/,
@@ -25,6 +30,7 @@ module.exports = {
     ]
   },
   plugins: [
+    new VueLoaderPlugin(),
     new HtmlWebpackPlugin({
       template: './public/index.html',
       filename: 'index.html'
@@ -35,6 +41,12 @@ module.exports = {
       ]
     })
   ],
+  resolve: {
+    extensions: ['.js', '.vue', '.json'],
+    alias: {
+      'vue': 'vue/dist/vue.esm-bundler.js'
+    }
+  },
   devServer: {
     static: {
       directory: path.join(__dirname, 'public')

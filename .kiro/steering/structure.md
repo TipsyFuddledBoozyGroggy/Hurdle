@@ -27,17 +27,20 @@ The application follows a **layered architecture**:
 - `FeedbackGenerator.js` - Feedback generation algorithm
 
 ### Presentation Layer
-- `UIController.js` - DOM manipulation and user interaction
-- `main.js` - Application entry point and initialization
+- `App.vue` - Vue 3 component (Composition API) for UI rendering and interaction
+- `UIController.js` - Legacy vanilla JS controller (kept for backward compatibility with tests)
+- `main.js` - Application entry point, initializes Vue app
 
 ### Component Interaction Flow
 ```
-User Input → UIController → GameController → GameState
-                                ↓
-                         FeedbackGenerator
-                                ↓
-                           Dictionary
+User Input → Vue App Component → GameController → GameState
+                                       ↓
+                                FeedbackGenerator
+                                       ↓
+                                  Dictionary
 ```
+
+**Note**: Business logic (GameController, GameState, FeedbackGenerator, Dictionary) remains framework-agnostic and uses CommonJS. Only the presentation layer uses Vue 3.
 
 ## Test Organization (`tests/`)
 

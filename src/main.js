@@ -1,10 +1,10 @@
-// Hard Wordle - Main Entry Point
-import '../public/styles.css';
+// Hard Wordle - Main Entry Point (Vue 3)
+import { createApp } from 'vue';
+import App from './App.vue';
 
 // Import game modules
 const Dictionary = require('./Dictionary');
 const GameController = require('./GameController');
-const UIController = require('./UIController');
 
 /**
  * Initialize the Hard Wordle application
@@ -40,11 +40,12 @@ async function initializeApp() {
     // Initialize GameController with Dictionary
     const gameController = new GameController(dictionary);
     
-    // Initialize UIController with GameController
-    const uiController = new UIController(gameController);
+    // Create and mount Vue app
+    const app = createApp(App, {
+      gameController
+    });
     
-    // Initialize UI and start the game
-    uiController.init();
+    app.mount('#app');
     
     console.log('Hard Wordle - Ready to play!');
     
@@ -52,20 +53,16 @@ async function initializeApp() {
     console.error('Failed to initialize application:', error);
     
     // Display user-friendly error message
-    const messageArea = document.getElementById('message-area');
-    if (messageArea) {
-      messageArea.textContent = `Failed to load game: ${error.message}. Please refresh the page to try again.`;
-      messageArea.classList.add('error');
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.innerHTML = `
+        <div id="game-container">
+          <div class="message-area error">
+            Failed to load game: ${error.message}. Please refresh the page to try again.
+          </div>
+        </div>
+      `;
     }
-    
-    // Disable game controls
-    const guessInput = document.getElementById('guess-input');
-    const submitBtn = document.getElementById('submit-btn');
-    const newGameBtn = document.getElementById('new-game-btn');
-    
-    if (guessInput) guessInput.disabled = true;
-    if (submitBtn) submitBtn.disabled = true;
-    if (newGameBtn) newGameBtn.disabled = true;
   }
 }
 

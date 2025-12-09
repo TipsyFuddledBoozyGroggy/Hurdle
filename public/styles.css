@@ -198,7 +198,7 @@ button:disabled {
   background-color: #4a4a4c;
 }
 
-#message-area {
+.message-area {
   min-height: 30px;
   text-align: center;
   font-size: 1rem;
@@ -206,17 +206,17 @@ button:disabled {
   border-radius: 4px;
 }
 
-#message-area.error {
+.message-area.error {
   background-color: #d32f2f;
   color: #ffffff;
 }
 
-#message-area.success {
+.message-area.success {
   background-color: #538d4e;
   color: #ffffff;
 }
 
-#message-area.info {
+.message-area.info {
   background-color: #818384;
   color: #ffffff;
 }
