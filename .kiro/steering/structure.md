@@ -27,9 +27,8 @@ The application follows a **layered architecture**:
 - `FeedbackGenerator.js` - Feedback generation algorithm
 
 ### Presentation Layer
-- `App.vue` - Vue 3 component (Composition API) for UI rendering and interaction
-- `UIController.js` - Legacy vanilla JS controller (kept for backward compatibility with tests)
-- `main.js` - Application entry point, initializes Vue app
+- `App.vue` - Vue 3 Single File Component (Composition API) for UI rendering and interaction
+- `main.js` - Application entry point, initializes Vue app and loads dictionary
 
 ### Component Interaction Flow
 ```
