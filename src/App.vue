@@ -214,7 +214,7 @@ export default {
       }
     };
     
-    const handleGuessSubmit = () => {
+    const handleGuessSubmit = async () => {
       if (isGameOver.value) return;
       
       const input = currentGuess.value.trim();
@@ -244,13 +244,15 @@ export default {
       
       console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses().length : 'no game state');
       
-      // Clear current guess after successful submission
-      currentGuess.value = '';
-      
+      // Animate tile flip before clearing current guess
       if (result.guess) {
+        await animateTileFlip(result.guess);
         updateKeyboardState(result.guess);
         console.log('Updated keyboard state for guess');
       }
+      
+      // Clear current guess after animation
+      currentGuess.value = '';
       
       if (result.gameStatus === 'won') {
         showGameOver(true);
@@ -259,6 +261,32 @@ export default {
       } else {
         console.log('Game continues, next guess ready');
       }
+    };
+    
+    const animateTileFlip = async (guess) => {
+      const feedback = guess.getFeedback();
+      const currentRowIndex = gameState.value.getGuesses().length - 1;
+      
+      // Add flip animation to each tile with a delay
+      for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => {
+          setTimeout(() => {
+            const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
+            if (tile) {
+              tile.classList.add('flipping');
+              // After flip animation completes, add the final status
+              setTimeout(() => {
+                tile.classList.remove('flipping');
+                tile.classList.add(feedback[i].status);
+              }, 300); // Half of the flip animation duration
+            }
+            resolve();
+          }, i * 100); // Stagger the animations
+        });
+      }
+      
+      // Wait for all animations to complete
+      await new Promise(resolve => setTimeout(resolve, 800));
     };
     
     const showGameOver = async (won) => {

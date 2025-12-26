@@ -65,6 +65,24 @@ h1 {
   text-transform: uppercase;
   background-color: #121213;
   transition: all 0.3s ease;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.letter-tile.flipping {
+  animation: flip 0.6s ease-in-out;
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
 }
 
 .letter-tile.empty {

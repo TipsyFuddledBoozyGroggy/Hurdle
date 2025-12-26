@@ -2,6 +2,10 @@ module.exports = {
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/tests', '<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/tests/selenium/' // Exclude Selenium tests from regular Jest runs
+  ],
   passWithNoTests: true,
   collectCoverageFrom: [
     'src/**/*.js',
