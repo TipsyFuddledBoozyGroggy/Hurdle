@@ -11,8 +11,14 @@ phases:
   pre_build:
     commands:
       - echo "🧪 Starting Test Stage..."
+      - echo "Node.js version:"
+      - node --version
+      - echo "NPM version:"
+      - npm --version
+      - echo "Checking package.json and package-lock.json..."
+      - ls -la package*.json
       - echo "Installing dependencies..."
-      - npm ci
+      - npm ci --verbose
   
   build:
     commands:
