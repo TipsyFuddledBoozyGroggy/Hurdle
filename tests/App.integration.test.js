@@ -454,7 +454,7 @@ describe('App.vue Integration Tests', () => {
     test('should show game title', async () => {
       const title = wrapper.find('h1');
       expect(title.exists()).toBe(true);
-      expect(title.text()).toBe('Hard Wordle');
+      expect(title.text()).toBe('Hurdle');
     });
 
     test('should show new game button', async () => {
