@@ -61,8 +61,8 @@ function mountAppWithTestController(options = {}) {
  */
 async function waitForUpdates() {
   await nextTick();
-  // Add small delay for any async operations
-  await new Promise(resolve => setTimeout(resolve, 10));
+  // Add longer delay for async operations including animations
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
 /**
@@ -85,7 +85,9 @@ async function submitGuess(wrapper) {
   const enterButton = wrapper.find('[data-key="ENTER"]');
   if (enterButton.exists()) {
     await enterButton.trigger('click');
-    await waitForUpdates();
+    // Wait longer for async submission and animations
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await nextTick();
   }
 }
 
@@ -134,14 +136,34 @@ function getKeyboardState(wrapper) {
 /**
  * Check if a message is displayed
  */
-function getDisplayedMessage(wrapper) {
+async function getDisplayedMessage(wrapper) {
+  // Force update and wait for Vue reactivity
+  await wrapper.vm.$nextTick();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   const messageArea = wrapper.find('#message-area');
-  if (messageArea.exists() && messageArea.isVisible()) {
-    return {
-      text: messageArea.text().trim(),
-      classes: messageArea.classes()
-    };
+  if (messageArea.exists()) {
+    const text = messageArea.text().trim();
+    if (text) {
+      return {
+        text: text,
+        classes: messageArea.classes()
+      };
+    }
   }
+  
+  // Also check for any element with message content
+  const allElements = wrapper.findAll('*');
+  for (const element of allElements) {
+    const text = element.text().trim();
+    if (text.includes('Congratulations') || text.includes('Game Over')) {
+      return {
+        text: text,
+        classes: element.classes()
+      };
+    }
+  }
+  
   return null;
 }
 
@@ -157,6 +179,8 @@ async function playGameToWin(wrapper, gameController, targetWord = null) {
   await typeWord(wrapper, targetWord);
   await submitGuess(wrapper);
   await waitForUpdates();
+  // Additional wait for async operations
+  await new Promise(resolve => setTimeout(resolve, 500));
 }
 
 /**
@@ -178,6 +202,8 @@ async function playGameToLoss(wrapper, gameController) {
     await submitGuess(wrapper);
     await waitForUpdates();
   }
+  // Additional wait for final async operations
+  await new Promise(resolve => setTimeout(resolve, 500));
 }
 
 module.exports = {

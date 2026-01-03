@@ -67,16 +67,14 @@ docker run -d -p 80:80 --name hard-wordle-app hard-wordle  # Run detached
 - **Nginx**: Serves static files in production
 - Build fails if tests fail (ensures quality)
 
-### AWS Infrastructure
-- **ECR**: Docker container registry
-- **ECS Fargate**: Serverless container orchestration
-- **Application Load Balancer**: Traffic distribution
-- **VPC**: Network isolation with public/private subnets
-- **CodePipeline**: CI/CD orchestration
-- **CodeBuild**: Automated build and test execution
-- **CloudFormation**: Infrastructure as Code
+### DigitalOcean Infrastructure
+- **Container Registry**: Docker container registry
+- **App Platform**: Serverless application hosting
+- **Load Balancer**: Built-in traffic distribution
+- **Spaces**: Object storage for assets
+- **Terraform**: Infrastructure as Code
 
 ### CI/CD Pipeline
-GitHub → CodePipeline → CodeBuild (test + build) → ECR → ECS → ALB
+GitHub → DigitalOcean App Platform (automatic build + deploy)
 
 Deployment is automated on every push to GitHub. Tests must pass before deployment.

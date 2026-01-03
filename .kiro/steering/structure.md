@@ -54,16 +54,15 @@ User Input → Vue App Component → GameController → GameState
 - `styles.css` - Application styling
 - `words.json` - Dictionary of 5000+ valid 5-letter words
 
-## Infrastructure (`infrastructure/`)
+## Infrastructure (`terraform/`)
 
-CloudFormation templates for AWS deployment:
+Terraform templates for DigitalOcean deployment:
 
-- `network-stack.yaml` - VPC, subnets, security groups
-- `ecr-stack.yaml` - Container registry
-- `ecs-stack.yaml` - ECS cluster, service, ALB
-- `pipeline-stack.yaml` - CI/CD pipeline
-- `deploy.sh` - Deployment orchestration script
-- `parameters/` - Environment-specific parameter files (dev, prod)
+- `main.tf` - Main infrastructure configuration
+- `variables.tf` - Input variables
+- `outputs.tf` - Output values
+- `terraform.tfvars.example` - Example configuration
+- `README.md` - Deployment guide
 
 ## Configuration Files (Root)
 

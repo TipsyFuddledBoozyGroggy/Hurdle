@@ -102,13 +102,23 @@ describe('GameController', () => {
       // Start a new game to ensure clean state
       gameController.startNewGame();
       
-      const result1 = gameController.submitGuess('APPLE');
-      expect(result1.success).toBe(true);
-      expect(result1.guess.getWord()).toBe('apple');
+      // Get the target word to avoid accidentally winning
+      const targetWord = gameController.getGameState().getTargetWord();
       
-      const result2 = gameController.submitGuess('BrEaD');
+      // Choose test words that won't accidentally win the game
+      const testWords = ['APPLE', 'BREAD', 'CRANE'];
+      const safeWords = testWords.filter(word => word.toLowerCase() !== targetWord);
+      
+      // Test case normalization with the first safe word
+      const result1 = gameController.submitGuess(safeWords[0]);
+      expect(result1.success).toBe(true);
+      expect(result1.guess.getWord()).toBe(safeWords[0].toLowerCase());
+      
+      // Test mixed case with the second safe word
+      const mixedCaseWord = safeWords[1];
+      const result2 = gameController.submitGuess(mixedCaseWord.charAt(0) + mixedCaseWord.slice(1).toLowerCase());
       expect(result2.success).toBe(true);
-      expect(result2.guess.getWord()).toBe('bread');
+      expect(result2.guess.getWord()).toBe(mixedCaseWord.toLowerCase());
     });
 
     test('should reject guess when game is already over', () => {

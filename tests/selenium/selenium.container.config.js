@@ -1,4 +1,4 @@
-// Selenium WebDriver configuration for Hard Wordle E2E tests
+// Selenium WebDriver configuration for containerized Hard Wordle E2E tests
 const { Builder, By, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
@@ -12,10 +12,8 @@ class SeleniumConfig {
     options.addArguments('--disable-gpu');
     options.addArguments('--window-size=1280,720');
     
-    // For local testing, comment out --headless to see the browser
-    if (process.env.HEADLESS === 'true') {
-      options.addArguments('--headless');
-    }
+    // Show browser for demonstration (comment out for headless)
+    // options.addArguments('--headless');
     
     const driver = await new Builder()
       .forBrowser('chrome')

@@ -16,4 +16,4 @@ Unlike the original Wordle which uses a curated list of common words, Hard Wordl
 
 ## Deployment
 
-The application is containerized with Docker and deployed on AWS using ECS Fargate with a fully automated CI/CD pipeline. Infrastructure is defined as code using CloudFormation templates.
+The application is containerized with Docker and deployed on DigitalOcean using App Platform with a fully automated CI/CD pipeline. Infrastructure is defined as code using Terraform templates.

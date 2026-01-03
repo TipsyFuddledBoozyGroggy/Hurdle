@@ -1,0 +1,28 @@
+# DigitalOcean Configuration
+do_token = "your-digitalocean-api-token"
+
+# Environment
+environment = "dev"
+region      = "nyc3"
+
+# GitHub Repository
+github_repo   = "your-username/hard-wordle"
+github_branch = "main"
+
+# App Platform Configuration
+instance_count = 1
+instance_size  = "basic-xxs"
+
+# Domain (optional)
+domain_name = "hardwordle.yourdomain.com"
+
+# Optional Features
+enable_database = false
+enable_spaces   = false
+enable_cdn      = false
+
+# Database Configuration (if enabled)
+db_size = "db-s-1vcpu-1gb"
+
+# CDN Configuration (if enabled)
+cdn_domain = "cdn.yourdomain.com"

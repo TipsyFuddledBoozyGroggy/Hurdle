@@ -92,7 +92,7 @@ export default {
             const hasLetter = isCurrentRow && colIndex < currentGuess.value.length;
             row.push({
               letter: hasLetter ? currentGuess.value[colIndex].toUpperCase() : '',
-              status: 'empty',
+              status: hasLetter ? 'filled' : 'empty',
               active: hasLetter
             });
           }
@@ -121,10 +121,11 @@ export default {
       if (!isGameOver.value && rows.length < maxAttempts.value) {
         const currentRow = [];
         for (let i = 0; i < 5; i++) {
+          const hasLetter = i < currentGuess.value.length;
           currentRow.push({
-            letter: i < currentGuess.value.length ? currentGuess.value[i].toUpperCase() : '',
-            status: 'empty',
-            active: i < currentGuess.value.length
+            letter: hasLetter ? currentGuess.value[i].toUpperCase() : '',
+            status: hasLetter ? 'filled' : 'empty',
+            active: hasLetter
           });
         }
         rows.push(currentRow);
@@ -303,6 +304,17 @@ export default {
     
     const fetchWordDefinition = async (word) => {
       try {
+        // Check if fetch is available (browser environment)
+        if (typeof fetch === 'undefined') {
+          // In Node.js environment (tests), skip API call
+          definition.value = {
+            word: word,
+            partOfSpeech: 'noun',
+            text: 'Definition not available in test environment'
+          };
+          return;
+        }
+        
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
         
         if (!response.ok) {

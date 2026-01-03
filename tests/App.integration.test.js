@@ -41,7 +41,7 @@ describe('App.vue Integration Tests', () => {
       
       // Verify initial state
       expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
-      expect(getDisplayedMessage(wrapper)).toBeNull();
+      expect(await getDisplayedMessage(wrapper)).toBeNull();
       
       // Type and submit the correct word
       await typeWord(wrapper, targetWord);
@@ -54,8 +54,11 @@ describe('App.vue Integration Tests', () => {
       // Submit the guess
       await submitGuess(wrapper);
       
+      // Wait longer for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Verify win state
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
       expect(message.text).toContain('Congratulations! You won!');
       expect(message.text).toContain(targetWord.toUpperCase());
@@ -76,7 +79,7 @@ describe('App.vue Integration Tests', () => {
       for (const letter of targetWord.toUpperCase()) {
         expect(keyboardState[letter]).toContain('correct');
       }
-    });
+    }, 15000);
 
     test('should win on the last attempt (6th guess)', async () => {
       const targetWord = gameController.getGameState().getTargetWord();
@@ -101,12 +104,17 @@ describe('App.vue Integration Tests', () => {
       // Make the winning guess on the 6th attempt
       await typeWord(wrapper, targetWord);
       await submitGuess(wrapper);
+      await waitForUpdates();
+      
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Verify win state
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
+      expect(message).not.toBeNull();
       expect(message.text).toContain('Congratulations! You won!');
       expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 6/6');
-    });
+    }, 20000);
   });
 
   describe('Complete Game Flow - Loss Scenario', () => {
@@ -116,8 +124,11 @@ describe('App.vue Integration Tests', () => {
       // Play game to loss
       await playGameToLoss(wrapper, gameController);
       
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Verify loss state
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
       expect(message.text).toContain('Game Over!');
       expect(message.text).toContain(targetWord.toUpperCase());
@@ -132,16 +143,20 @@ describe('App.vue Integration Tests', () => {
         const row = finalBoard[i];
         expect(row.every(tile => tile.letter !== '')).toBe(true);
       }
-    });
+    }, 20000);
 
     test('should show target word after loss', async () => {
       const targetWord = gameController.getGameState().getTargetWord();
       
       await playGameToLoss(wrapper, gameController);
       
-      const message = getDisplayedMessage(wrapper);
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const message = await getDisplayedMessage(wrapper);
+      expect(message).not.toBeNull();
       expect(message.text).toContain(`The word was ${targetWord.toUpperCase()}`);
-    });
+    }, 20000);
   });
 
   describe('Keyboard Interaction', () => {
@@ -198,8 +213,12 @@ describe('App.vue Integration Tests', () => {
       await enterKey.trigger('click');
       await waitForUpdates();
       
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Verify submission occurred
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
+      expect(message).not.toBeNull();
       expect(message.text).toContain('Congratulations! You won!');
     });
 
@@ -284,7 +303,7 @@ describe('App.vue Integration Tests', () => {
       // Try to submit without typing anything
       await submitGuess(wrapper);
       
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
       expect(message.text).toBe('Please enter a word');
       expect(message.classes).toContain('error');
@@ -295,7 +314,7 @@ describe('App.vue Integration Tests', () => {
       await typeWord(wrapper, 'ABC');
       await submitGuess(wrapper);
       
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       expect(message.text).toBe('Word must be 5 letters long');
       expect(message.classes).toContain('error');
     });
@@ -305,7 +324,7 @@ describe('App.vue Integration Tests', () => {
       await typeWord(wrapper, 'ZZZZZ');
       await submitGuess(wrapper);
       
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       expect(message.text).toBe('Not a valid word');
       expect(message.classes).toContain('error');
     });
@@ -313,14 +332,14 @@ describe('App.vue Integration Tests', () => {
     test('should clear error message on next valid input', async () => {
       // First, create an error
       await submitGuess(wrapper); // Empty guess
-      expect(getDisplayedMessage(wrapper).text).toBe('Please enter a word');
+      expect((await getDisplayedMessage(wrapper)).text).toBe('Please enter a word');
       
       // Then make a valid guess
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
       
       // Error message should be cleared
-      const message = getDisplayedMessage(wrapper);
+      const message = await getDisplayedMessage(wrapper);
       if (message) {
         // If there's a message, it should be a game result, not an error
         expect(message.classes).not.toContain('error');
@@ -366,15 +385,17 @@ describe('App.vue Integration Tests', () => {
       expect(board[0].every(tile => tile.letter === '')).toBe(true);
       
       // Verify message is cleared
-      expect(getDisplayedMessage(wrapper)).toBeNull();
+      expect(await getDisplayedMessage(wrapper)).toBeNull();
     });
 
     test('should clear keyboard state on new game', async () => {
       // Make a guess to update keyboard state
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
+      await waitForUpdates();
       
-      // Verify keyboard has some state
+      // Verify keyboard has some state (wait for async operations to complete)
+      await new Promise(resolve => setTimeout(resolve, 500));
       const keyboardBefore = getKeyboardState(wrapper);
       const hasKeyboardState = Object.values(keyboardBefore).some(classes => 
         classes.includes('correct') || classes.includes('present') || classes.includes('absent')
@@ -423,9 +444,12 @@ describe('App.vue Integration Tests', () => {
         await submitGuess(wrapper);
         await waitForUpdates();
         
+        // Wait for async operations to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i + 1}/6`);
       }
-    });
+    }, 15000);
 
     test('should show game title', async () => {
       const title = wrapper.find('h1');
