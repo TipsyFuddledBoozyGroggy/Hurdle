@@ -14,10 +14,10 @@ provider "digitalocean" {
   token = var.do_token
 }
 
-# Container Registry
+# Container Registry - Free tier
 resource "digitalocean_container_registry" "hurdle" {
   name                   = "hurdle-${var.environment}"
-  subscription_tier_slug = "basic"
+  subscription_tier_slug = "starter"  # Free tier - 500MB storage
   region                 = var.region
 }
 
@@ -90,9 +90,12 @@ resource "digitalocean_app" "hurdle" {
       }
     }
 
-    domain {
-      name = var.domain_name
-      type = "PRIMARY"
+    dynamic "domain" {
+      for_each = var.domain_name != "" ? [1] : []
+      content {
+        name = var.domain_name
+        type = "PRIMARY"
+      }
     }
   }
 }

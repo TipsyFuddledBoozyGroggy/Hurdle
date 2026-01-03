@@ -1,6 +1,9 @@
 /**
  * Database connection and operations for Hurdle
- * Handles MySQL database interactions for game statistics and user data
+ * Supports multiple storage backends:
+ * 1. Browser localStorage (free, local only)
+ * 2. MySQL (for production with database)
+ * 3. External free services (Supabase, Railway, Neon)
  */
 
 let mysql2;
@@ -21,15 +24,27 @@ class Database {
   constructor() {
     this.connection = null;
     this.isConnected = false;
+    this.useLocalStorage = isBrowser || !process.env.DB_HOST;
   }
 
   /**
-   * Initialize database connection
+   * Initialize database connection or localStorage
    */
   async connect() {
-    if (isBrowser || !mysql2) {
-      console.log('Database operations not available in browser environment');
-      return false;
+    // If no database configured, use localStorage
+    if (this.useLocalStorage || isBrowser) {
+      console.log('Using browser localStorage for game data');
+      this.isConnected = true;
+      await this.initializeLocalStorage();
+      return true;
+    }
+
+    if (!mysql2) {
+      console.log('MySQL not available, falling back to localStorage');
+      this.useLocalStorage = true;
+      this.isConnected = true;
+      await this.initializeLocalStorage();
+      return true;
     }
 
     try {
@@ -68,17 +83,51 @@ class Database {
       console.log('Database connected and initialized successfully');
       return true;
     } catch (error) {
-      console.error('Database connection failed:', error.message);
-      this.isConnected = false;
-      return false;
+      console.error('Database connection failed, falling back to localStorage:', error.message);
+      this.useLocalStorage = true;
+      this.isConnected = true;
+      await this.initializeLocalStorage();
+      return true;
     }
   }
 
   /**
-   * Initialize database schema
+   * Initialize localStorage with default structure
+   */
+  async initializeLocalStorage() {
+    if (!isBrowser) return;
+
+    try {
+      // Initialize statistics if not exists
+      const stats = localStorage.getItem('hurdle_statistics');
+      if (!stats) {
+        const defaultStats = {
+          totalGames: 0,
+          gamesWon: 0,
+          currentStreak: 0,
+          maxStreak: 0,
+          guessDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 }
+        };
+        localStorage.setItem('hurdle_statistics', JSON.stringify(defaultStats));
+      }
+
+      // Initialize games array if not exists
+      const games = localStorage.getItem('hurdle_games');
+      if (!games) {
+        localStorage.setItem('hurdle_games', JSON.stringify([]));
+      }
+
+      console.log('localStorage initialized for game data');
+    } catch (error) {
+      console.error('Failed to initialize localStorage:', error.message);
+    }
+  }
+
+  /**
+   * Initialize database schema (MySQL only)
    */
   async initializeSchema() {
-    if (!this.connection) return;
+    if (!this.connection || this.useLocalStorage) return;
 
     try {
       // Create games table for storing game results
@@ -129,11 +178,15 @@ class Database {
    * Save a completed game
    */
   async saveGame(gameData) {
-    if (!this.connection || isBrowser) return null;
+    const { targetWord, guesses, attemptsUsed, won, durationSeconds } = gameData;
+
+    if (this.useLocalStorage) {
+      return this.saveGameToLocalStorage(gameData);
+    }
+
+    if (!this.connection) return null;
 
     try {
-      const { targetWord, guesses, attemptsUsed, won, durationSeconds } = gameData;
-      
       const [result] = await this.connection.execute(`
         INSERT INTO games (target_word, guesses, attempts_used, won, duration_seconds)
         VALUES (?, ?, ?, ?, ?)
@@ -156,10 +209,56 @@ class Database {
   }
 
   /**
+   * Save game to localStorage
+   */
+  saveGameToLocalStorage(gameData) {
+    if (!isBrowser) return null;
+
+    try {
+      const { targetWord, guesses, attemptsUsed, won, durationSeconds } = gameData;
+      
+      // Get existing games
+      const games = JSON.parse(localStorage.getItem('hurdle_games') || '[]');
+      
+      // Add new game
+      const newGame = {
+        id: Date.now(),
+        targetWord,
+        guesses,
+        attemptsUsed,
+        won,
+        durationSeconds: durationSeconds || null,
+        createdAt: new Date().toISOString()
+      };
+      
+      games.push(newGame);
+      
+      // Keep only last 100 games to prevent localStorage bloat
+      if (games.length > 100) {
+        games.splice(0, games.length - 100);
+      }
+      
+      localStorage.setItem('hurdle_games', JSON.stringify(games));
+      
+      // Update statistics
+      this.updateLocalStorageStatistics(won, attemptsUsed);
+      
+      return newGame.id;
+    } catch (error) {
+      console.error('Failed to save game to localStorage:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Update game statistics
    */
   async updateStatistics(won, attemptsUsed) {
-    if (!this.connection || isBrowser) return;
+    if (this.useLocalStorage) {
+      return this.updateLocalStorageStatistics(won, attemptsUsed);
+    }
+
+    if (!this.connection) return;
 
     try {
       // Get current statistics
@@ -196,19 +295,44 @@ class Database {
   }
 
   /**
+   * Update localStorage statistics
+   */
+  updateLocalStorageStatistics(won, attemptsUsed) {
+    if (!isBrowser) return;
+
+    try {
+      const stats = JSON.parse(localStorage.getItem('hurdle_statistics') || '{}');
+      
+      stats.totalGames = (stats.totalGames || 0) + 1;
+      stats.gamesWon = (stats.gamesWon || 0) + (won ? 1 : 0);
+      stats.currentStreak = won ? (stats.currentStreak || 0) + 1 : 0;
+      stats.maxStreak = Math.max(stats.maxStreak || 0, stats.currentStreak);
+      
+      // Update guess distribution
+      if (!stats.guessDistribution) {
+        stats.guessDistribution = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
+      }
+      
+      if (won && attemptsUsed <= 6) {
+        stats.guessDistribution[attemptsUsed.toString()] = (stats.guessDistribution[attemptsUsed.toString()] || 0) + 1;
+      }
+      
+      localStorage.setItem('hurdle_statistics', JSON.stringify(stats));
+    } catch (error) {
+      console.error('Failed to update localStorage statistics:', error.message);
+    }
+  }
+
+  /**
    * Get game statistics
    */
   async getStatistics() {
-    if (!this.connection || isBrowser) {
-      // Return default stats for browser environment
-      return {
-        totalGames: 0,
-        gamesWon: 0,
-        winPercentage: 0,
-        currentStreak: 0,
-        maxStreak: 0,
-        guessDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 }
-      };
+    if (this.useLocalStorage) {
+      return this.getLocalStorageStatistics();
+    }
+
+    if (!this.connection) {
+      return this.getLocalStorageStatistics();
     }
 
     try {
@@ -225,7 +349,47 @@ class Database {
       };
     } catch (error) {
       console.error('Failed to get statistics:', error.message);
-      return null;
+      return this.getLocalStorageStatistics();
+    }
+  }
+
+  /**
+   * Get statistics from localStorage
+   */
+  getLocalStorageStatistics() {
+    if (!isBrowser) {
+      // Return default stats for server environment
+      return {
+        totalGames: 0,
+        gamesWon: 0,
+        winPercentage: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+        guessDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 }
+      };
+    }
+
+    try {
+      const stats = JSON.parse(localStorage.getItem('hurdle_statistics') || '{}');
+      
+      return {
+        totalGames: stats.totalGames || 0,
+        gamesWon: stats.gamesWon || 0,
+        winPercentage: stats.totalGames > 0 ? Math.round((stats.gamesWon / stats.totalGames) * 100) : 0,
+        currentStreak: stats.currentStreak || 0,
+        maxStreak: stats.maxStreak || 0,
+        guessDistribution: stats.guessDistribution || { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 }
+      };
+    } catch (error) {
+      console.error('Failed to get localStorage statistics:', error.message);
+      return {
+        totalGames: 0,
+        gamesWon: 0,
+        winPercentage: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+        guessDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 }
+      };
     }
   }
 
@@ -233,7 +397,11 @@ class Database {
    * Get recent games
    */
   async getRecentGames(limit = 10) {
-    if (!this.connection || isBrowser) return [];
+    if (this.useLocalStorage) {
+      return this.getLocalStorageRecentGames(limit);
+    }
+
+    if (!this.connection) return [];
 
     try {
       const [rows] = await this.connection.execute(`
@@ -246,6 +414,29 @@ class Database {
       return rows;
     } catch (error) {
       console.error('Failed to get recent games:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get recent games from localStorage
+   */
+  getLocalStorageRecentGames(limit = 10) {
+    if (!isBrowser) return [];
+
+    try {
+      const games = JSON.parse(localStorage.getItem('hurdle_games') || '[]');
+      return games
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, limit)
+        .map(game => ({
+          target_word: game.targetWord,
+          attempts_used: game.attemptsUsed,
+          won: game.won,
+          created_at: game.createdAt
+        }));
+    } catch (error) {
+      console.error('Failed to get recent games from localStorage:', error.message);
       return [];
     }
   }

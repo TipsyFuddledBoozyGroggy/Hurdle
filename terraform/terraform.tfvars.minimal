@@ -1,0 +1,41 @@
+# ULTRA-LOW-COST CONFIGURATION (~$5/month)
+# This configuration uses only free tier services where possible
+
+# DigitalOcean Configuration
+# Set your token via environment variable: export TF_VAR_do_token="your_token_here"
+# Or uncomment and add your token below:
+# do_token = "your_digitalocean_token_here"
+
+# Environment
+environment = "dev"
+region      = "nyc3"  # New York region
+
+# GitHub Repository
+github_repo   = "TipsyFuddledBoozyGroggy/Hurdle"
+github_branch = "main"
+
+# App Platform Configuration - Smallest possible instance
+instance_count = 1
+instance_size  = "basic-xxs"  # $5/month - smallest available
+
+# Domain (optional - leave empty for now)
+domain_name = ""
+
+# DISABLE DATABASE to save $15/month - Use free alternatives instead
+enable_database = false
+
+# Optional Features - All disabled to save costs
+enable_spaces = false
+enable_cdn    = false
+
+# TOTAL ESTIMATED MONTHLY COST: $5/month
+# - App Platform (basic-xxs): $5/month
+# - Container Registry (starter): FREE (500MB limit)
+# - Database: DISABLED (use free alternatives like Supabase, localStorage)
+# - Spaces & CDN: DISABLED
+
+# FREE DATABASE ALTERNATIVES:
+# 1. Supabase PostgreSQL (500MB free)
+# 2. Railway ($5 monthly credit)
+# 3. Neon PostgreSQL (1GB free)
+# 4. Browser localStorage (no persistence across devices)

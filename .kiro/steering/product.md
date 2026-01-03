@@ -1,19 +1,23 @@
 # Product Overview
 
-Hurdle is a challenging word-guessing game based on the New York Times Wordle. Players have 6 attempts to guess a randomly selected 5-letter English word, receiving color-coded feedback after each guess.
+Hurdle is a challenging word-guessing game based on Wordle, featuring over 5000 valid English words to make it significantly more difficult than traditional Wordle.
 
-## Key Differentiator
+## Core Features
 
-Unlike the original Wordle which uses a curated list of common words, Hurdle accepts any valid 5-letter word from the English language (5000+ words), making it significantly more challenging.
+- **Enhanced Difficulty**: Uses comprehensive English dictionary with 5000+ words
+- **Classic Gameplay**: 6 attempts to guess a 5-letter word with color-coded feedback
+- **Statistics Tracking**: Win rates, streaks, and guess distribution stored in MySQL
+- **Word Definitions**: Shows definition of target word after game completion
+- **Responsive Design**: Works on desktop and mobile devices
 
-## Game Mechanics
+## Game Rules
 
-- **Green**: Letter is correct and in the right position
-- **Yellow**: Letter is in the word but in the wrong position  
-- **Gray**: Letter is not in the word at all
-- Only valid 5-letter English words are accepted as guesses
-- Game ends when word is guessed correctly or 6 attempts are exhausted
+- 6 attempts to guess a 5-letter word
+- **Green**: Correct letter in correct position  
+- **Yellow**: Correct letter in wrong position
+- **Gray**: Letter not in the word
+- Only valid English words from the dictionary are accepted
 
-## Deployment
+## Target Audience
 
-The application is containerized with Docker and deployed on DigitalOcean using App Platform with a fully automated CI/CD pipeline. Infrastructure is defined as code using Terraform templates.
+Players seeking a more challenging alternative to standard Wordle, with a focus on vocabulary expansion and word knowledge.

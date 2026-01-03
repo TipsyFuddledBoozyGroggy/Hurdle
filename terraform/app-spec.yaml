@@ -1,0 +1,19 @@
+name: hurdle-dev
+region: nyc3
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: TipsyFuddledBoozyGroggy/Hurdle
+    branch: main
+    deploy_on_push: true
+  run_command: npm start
+  build_command: npm ci && npm run build
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 3000
+  health_check:
+    http_path: /
+  routes:
+  - path: /

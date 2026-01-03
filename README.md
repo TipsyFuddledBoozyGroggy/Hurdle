@@ -42,15 +42,22 @@ A challenging word-guessing game with 5000+ valid English words, making it signi
 
 ## 🗄️ Database
 
-### Local MySQL (Docker)
-- **Host**: localhost
-- **Port**: 3306
-- **Database**: hurdle
-- **User**: hurdle_user
-- **Password**: hurdle_password
+### Default: Browser localStorage (FREE)
+The app uses browser localStorage by default - no external database required! Game statistics are stored locally in your browser.
 
-### Production (DigitalOcean)
-Database connection is automatically configured via environment variables set by Terraform.
+### Optional: External Database
+For cross-device sync and persistent storage, you can use free database services:
+- **Supabase**: 500MB free PostgreSQL
+- **Railway**: $5 monthly credit
+- **Neon**: 1GB free PostgreSQL
+
+See [FREE-DATABASE-SETUP.md](FREE-DATABASE-SETUP.md) for detailed setup instructions.
+
+### Local Development with MySQL (Docker)
+For local development with MySQL:
+```bash
+npm run docker:dev  # Includes MySQL + phpMyAdmin
+```
 
 ## 🐳 Docker Commands
 
@@ -86,48 +93,49 @@ docker build -t hurdle .   # Docker image
 
 ### DigitalOcean with Terraform
 
-1. **Configure Terraform**:
-   ```bash
-   cd terraform
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your values
-   ```
+**Ultra-Low-Cost Deployment ($5/month):**
 
-2. **Deploy**:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+This creates:
+- DigitalOcean App Platform ($5/month)
+- Container Registry (FREE)
+- Uses browser localStorage for game data (FREE)
+
+**Optional: Add External Database**
+See [FREE-DATABASE-SETUP.md](FREE-DATABASE-SETUP.md) for free database options like Supabase.
 
 ### Environment Variables
 
 **Local Development** (`.env.local`):
 ```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=hurdle
-DB_USER=hurdle_user
-DB_PASSWORD=hurdle_password
+# Optional: Add database connection for external services
+# DB_HOST=your-database-host
+# DB_PORT=5432
+# DB_NAME=your-database-name
+# DB_USER=your-username
+# DB_PASSWORD=your-password
 NODE_ENV=development
 ```
 
-**Production** (set by Terraform):
-- `DATABASE_URL`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
+**Production** (DigitalOcean App Platform):
+- Uses browser localStorage by default (no database env vars needed)
+- Optionally add database environment variables for external services
 
 ## 📊 Features
 
 - **5000+ Words**: Uses comprehensive English dictionary
-- **Statistics Tracking**: Win rates, streaks, guess distribution
-- **MySQL Database**: Persistent game data and statistics
+- **Statistics Tracking**: Win rates, streaks, guess distribution (localStorage)
+- **Optional Database**: Support for external free databases (Supabase, Railway, Neon)
 - **Responsive Design**: Works on desktop and mobile
 - **Docker Support**: Easy local development
 - **Auto-deployment**: CI/CD with DigitalOcean App Platform
+- **Cost-Optimized**: $5/month deployment with free data storage
 
 ## 🎮 Game Rules
 

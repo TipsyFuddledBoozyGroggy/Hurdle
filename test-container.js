@@ -1,8 +1,8 @@
 const { Builder, By, until, Key } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
-async function testHardWordleContainer() {
-  console.log('🧪 Testing Hard Wordle Container with Selenium...');
+async function testHurdleContainer() {
+  console.log('🧪 Testing Hurdle Container with Selenium...');
   
   // Configure Chrome options
   const options = new chrome.Options();
@@ -170,7 +170,7 @@ async function testHardWordleContainer() {
 }
 
 // Run the test
-testHardWordleContainer()
+testHurdleContainer()
   .then(() => {
     console.log('🏁 Container testing completed successfully!');
     process.exit(0);
