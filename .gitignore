@@ -39,3 +39,13 @@ yarn-error.log*
 
 # Docker
 .dockerignore
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+
+# Database
+database/data/

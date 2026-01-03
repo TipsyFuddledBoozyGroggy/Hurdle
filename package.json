@@ -1,5 +1,5 @@
 {
-  "name": "hard-wordle",
+  "name": "hurdle",
   "version": "1.0.0",
   "description": "A challenging word-guessing game based on Wordle",
   "main": "src/main.js",
@@ -12,7 +12,13 @@
     "test:e2e": "npm run test:selenium",
     "build": "webpack --mode production",
     "dev": "webpack serve --mode development",
-    "start": "webpack serve --mode development --open"
+    "start": "webpack serve --mode development --open",
+    "docker:dev": "docker-compose up --build",
+    "docker:dev:detached": "docker-compose up -d --build",
+    "docker:stop": "docker-compose down",
+    "docker:clean": "docker-compose down -v --remove-orphans",
+    "db:setup": "docker-compose up -d mysql",
+    "db:reset": "docker-compose down -v && docker-compose up -d mysql"
   },
   "keywords": [
     "wordle",
@@ -43,6 +49,8 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "vue": "^3.5.25"
+    "vue": "^3.5.25",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1"
   }
 }

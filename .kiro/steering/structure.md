@@ -3,11 +3,11 @@
 ## Directory Layout
 
 ```
-hard-wordle/
+hurdle/
 ├── src/                    # Application source code
 ├── tests/                  # Test files (mirrors src structure)
 ├── public/                 # Static assets
-├── infrastructure/         # CloudFormation IaC templates
+├── terraform/              # Terraform IaC templates
 ├── dist/                   # Build output (generated, not in git)
 ├── node_modules/           # Dependencies (generated, not in git)
 └── [config files]          # Root-level configuration

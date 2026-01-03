@@ -1,10 +1,10 @@
 # Product Overview
 
-Hard Wordle is a challenging word-guessing game based on the New York Times Wordle. Players have 6 attempts to guess a randomly selected 5-letter English word, receiving color-coded feedback after each guess.
+Hurdle is a challenging word-guessing game based on the New York Times Wordle. Players have 6 attempts to guess a randomly selected 5-letter English word, receiving color-coded feedback after each guess.
 
 ## Key Differentiator
 
-Unlike the original Wordle which uses a curated list of common words, Hard Wordle accepts any valid 5-letter word from the English language (5000+ words), making it significantly more challenging.
+Unlike the original Wordle which uses a curated list of common words, Hurdle accepts any valid 5-letter word from the English language (5000+ words), making it significantly more challenging.
 
 ## Game Mechanics
 

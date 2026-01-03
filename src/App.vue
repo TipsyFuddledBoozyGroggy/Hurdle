@@ -1,7 +1,7 @@
 <template>
   <div id="game-container">
     <header>
-      <h1>Hard Wordle</h1>
+      <h1>Hurdle</h1>
       <div id="attempts-remaining">Attempts: {{ attemptsUsed }}/{{ maxAttempts }}</div>
     </header>
     

@@ -55,9 +55,9 @@ npm run test:coverage   # Generate coverage report
 npm run build           # Production build to dist/
 
 # Docker
-docker build -t hard-wordle .                    # Build image (includes tests)
-docker run -p 80:80 hard-wordle                  # Run container
-docker run -d -p 80:80 --name hard-wordle-app hard-wordle  # Run detached
+docker build -t hurdle .                    # Build image (includes tests)
+docker run -p 80:80 hurdle                  # Run container
+docker run -d -p 80:80 --name hurdle-app hurdle  # Run detached
 ```
 
 ## Deployment Stack

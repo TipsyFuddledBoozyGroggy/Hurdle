@@ -23,6 +23,7 @@ variable "region" {
 variable "github_repo" {
   description = "GitHub repository in format 'owner/repo'"
   type        = string
+  default     = "TipsyFuddledBoozyGroggy/Hurdle"
 }
 
 variable "github_branch" {

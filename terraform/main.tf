@@ -1,4 +1,4 @@
-# Hard Wordle - DigitalOcean Infrastructure
+# Hurdle - DigitalOcean Infrastructure
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -15,16 +15,16 @@ provider "digitalocean" {
 }
 
 # Container Registry
-resource "digitalocean_container_registry" "hard_wordle" {
-  name                   = "hard-wordle-${var.environment}"
+resource "digitalocean_container_registry" "hurdle" {
+  name                   = "hurdle-${var.environment}"
   subscription_tier_slug = "basic"
   region                 = var.region
 }
 
 # App Platform Application
-resource "digitalocean_app" "hard_wordle" {
+resource "digitalocean_app" "hurdle" {
   spec {
-    name   = "hard-wordle-${var.environment}"
+    name   = "hurdle-${var.environment}"
     region = var.region
 
     service {
@@ -51,27 +51,44 @@ resource "digitalocean_app" "hard_wordle" {
       routes {
         path = "/"
       }
-    }
 
-    # Static site option (alternative to service above)
-    # Uncomment if you want to serve static files instead
-    # static_site {
-    #   name             = "hard-wordle-static"
-    #   build_command    = "npm ci && npm run build"
-    #   output_dir       = "/dist"
-    #   index_document   = "index.html"
-    #   error_document   = "index.html"
-    #
-    #   github {
-    #     repo           = var.github_repo
-    #     branch         = var.github_branch
-    #     deploy_on_push = true
-    #   }
-    #
-    #   routes {
-    #     path = "/"
-    #   }
-    # }
+      # Environment variables for database connection
+      env {
+        key   = "DATABASE_URL"
+        value = var.enable_database ? "mysql://${digitalocean_database_cluster.hurdle_db[0].user}:${digitalocean_database_cluster.hurdle_db[0].password}@${digitalocean_database_cluster.hurdle_db[0].host}:${digitalocean_database_cluster.hurdle_db[0].port}/${digitalocean_database_cluster.hurdle_db[0].database}" : ""
+        scope = "RUN_TIME"
+      }
+
+      env {
+        key   = "DB_HOST"
+        value = var.enable_database ? digitalocean_database_cluster.hurdle_db[0].host : ""
+        scope = "RUN_TIME"
+      }
+
+      env {
+        key   = "DB_PORT"
+        value = var.enable_database ? tostring(digitalocean_database_cluster.hurdle_db[0].port) : ""
+        scope = "RUN_TIME"
+      }
+
+      env {
+        key   = "DB_NAME"
+        value = var.enable_database ? digitalocean_database_cluster.hurdle_db[0].database : ""
+        scope = "RUN_TIME"
+      }
+
+      env {
+        key   = "DB_USER"
+        value = var.enable_database ? digitalocean_database_cluster.hurdle_db[0].user : ""
+        scope = "RUN_TIME"
+      }
+
+      env {
+        key   = "DB_PASSWORD"
+        value = var.enable_database ? digitalocean_database_cluster.hurdle_db[0].password : ""
+        scope = "RUN_TIME"
+      }
+    }
 
     domain {
       name = var.domain_name
@@ -80,26 +97,33 @@ resource "digitalocean_app" "hard_wordle" {
   }
 }
 
-# Database (optional - for future features like user scores)
-resource "digitalocean_database_cluster" "hard_wordle_db" {
+# MySQL Database
+resource "digitalocean_database_cluster" "hurdle_db" {
   count      = var.enable_database ? 1 : 0
-  name       = "hard-wordle-db-${var.environment}"
-  engine     = "pg"
-  version    = "15"
+  name       = "hurdle-db-${var.environment}"
+  engine     = "mysql"
+  version    = "8"
   size       = var.db_size
   region     = var.region
   node_count = 1
 
   tags = [
-    "hard-wordle",
+    "hurdle",
     var.environment
   ]
 }
 
+# Database for the application
+resource "digitalocean_database_db" "hurdle_app_db" {
+  count      = var.enable_database ? 1 : 0
+  cluster_id = digitalocean_database_cluster.hurdle_db[0].id
+  name       = "hurdle"
+}
+
 # Spaces (Object Storage) for assets
-resource "digitalocean_spaces_bucket" "hard_wordle_assets" {
+resource "digitalocean_spaces_bucket" "hurdle_assets" {
   count  = var.enable_spaces ? 1 : 0
-  name   = "hard-wordle-assets-${var.environment}"
+  name   = "hurdle-assets-${var.environment}"
   region = var.region
   acl    = "public-read"
 
@@ -112,8 +136,8 @@ resource "digitalocean_spaces_bucket" "hard_wordle_assets" {
 }
 
 # CDN for better performance
-resource "digitalocean_cdn" "hard_wordle_cdn" {
+resource "digitalocean_cdn" "hurdle_cdn" {
   count      = var.enable_cdn ? 1 : 0
-  origin     = digitalocean_spaces_bucket.hard_wordle_assets[0].bucket_domain_name
+  origin     = digitalocean_spaces_bucket.hurdle_assets[0].bucket_domain_name
   custom_domain = var.cdn_domain
 }

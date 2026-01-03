@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: hurdle-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: hurdle
+      MYSQL_USER: hurdle_user
+      MYSQL_PASSWORD: hurdle_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - hurdle-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Hurdle Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: hurdle-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: hurdle
+      DB_USER: hurdle_user
+      DB_PASSWORD: hurdle_password
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - hurdle-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: npm run dev
+
+  # phpMyAdmin for database management (optional)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: hurdle-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    networks:
+      - hurdle-network
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+
+networks:
+  hurdle-network:
+    driver: bridge
