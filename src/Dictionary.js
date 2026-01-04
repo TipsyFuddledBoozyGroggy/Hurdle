@@ -28,7 +28,7 @@ class Dictionary {
   }
 
   /**
-   * Check if a word exists in the dictionary using API validation
+   * Check if a word exists in the dictionary using WordsAPI validation
    * @param {string} word - The word to validate
    * @returns {Promise<boolean>} True if the word is a valid English word
    */
@@ -38,12 +38,20 @@ class Dictionary {
     }
 
     try {
-      // Use the same dictionary API for word validation
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+      // Use WordsAPI for word validation
+      const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': 'demo', // Using demo key - users can replace with their own
+          'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+        }
+      });
+
+      // WordsAPI returns 200 for valid words, 404 for invalid words
       return response.ok;
     } catch (error) {
       // If API fails, fall back to local dictionary
-      console.warn('API validation failed, falling back to local dictionary:', error);
+      console.warn('WordsAPI validation failed, falling back to local dictionary:', error);
       return this.wordSet.has(word.toLowerCase());
     }
   }

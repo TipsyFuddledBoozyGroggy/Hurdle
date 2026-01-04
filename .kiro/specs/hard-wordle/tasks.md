@@ -439,6 +439,25 @@
     - Verify API fallback works correctly in test environment
     - _Requirements: All testing requirements_
 
+- [x] 27. Migrate to WordsAPI for all word operations
+  - [x] 27.1 Update word validation to use WordsAPI
+    - Replace dictionary API with WordsAPI for word validation
+    - Use consistent API endpoint for both validation and word selection
+    - Maintain fallback to local dictionary when API unavailable
+    - _Requirements: 2.2, 7.1, 7.2_
+
+  - [x] 27.2 Update word definition fetching to use WordsAPI
+    - Replace dictionary API with WordsAPI for word definitions
+    - Handle WordsAPI response structure for definitions
+    - Provide consistent error messages for unavailable definitions
+    - _Requirements: 5.3, 6.4_
+
+  - [x] 27.3 Test and verify WordsAPI integration
+    - Build and test application with WordsAPI integration
+    - Verify fallback behavior works in test environment
+    - Ensure consistent API usage across all word operations
+    - _Requirements: 8.1, 8.2, 2.2, 7.2_
+
 ## Remaining Tasks (To Be Completed)
 
 - [x] 16. Write Vue component integration tests

@@ -334,32 +334,40 @@ export default {
           return;
         }
         
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+        // Use WordsAPI for word definitions
+        const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': 'demo', // Using demo key - users can replace with their own
+            'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+          }
+        });
         
         if (!response.ok) {
           // Don't throw error, just handle gracefully
           definition.value = {
             word: word,
             partOfSpeech: 'uncommon word',
-            text: 'This is a rare or technical English word. Definition not available from dictionary API.'
+            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
           };
           return;
         }
         
         const data = await response.json();
         
-        if (data && data.length > 0 && data[0].meanings && data[0].meanings.length > 0) {
-          const meaning = data[0].meanings[0];
+        // WordsAPI structure: { results: [{ definition, partOfSpeech }] }
+        if (data && data.results && data.results.length > 0) {
+          const result = data.results[0];
           definition.value = {
             word: word,
-            partOfSpeech: meaning.partOfSpeech,
-            text: meaning.definitions[0].definition
+            partOfSpeech: result.partOfSpeech || 'word',
+            text: result.definition || 'Definition not available'
           };
         } else {
           definition.value = {
             word: word,
             partOfSpeech: 'uncommon word',
-            text: 'This is a rare or technical English word. Definition not available from dictionary API.'
+            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
           };
         }
       } catch (error) {
@@ -367,7 +375,7 @@ export default {
         definition.value = {
           word: word,
           partOfSpeech: 'uncommon word',
-          text: 'This is a rare or technical English word. Definition not available from dictionary API.'
+          text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
         };
       }
     };
