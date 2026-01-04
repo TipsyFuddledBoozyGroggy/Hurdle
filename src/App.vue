@@ -67,6 +67,7 @@ export default {
     const definition = ref(null);
     const keyboardState = ref({});
     const isInitialized = ref(false);
+    const gameStateVersion = ref(0); // Force reactivity trigger
 
     
     const keyboardLayout = [
@@ -75,7 +76,11 @@ export default {
       ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'BACKSPACE']
     ];
     
-    const gameState = computed(() => props.gameController?.getGameState() || null);
+    const gameState = computed(() => {
+      // Access gameStateVersion to trigger reactivity
+      gameStateVersion.value;
+      return props.gameController?.getGameState() || null;
+    });
     const isGameOver = computed(() => gameState.value?.isGameOver() || false);
     const maxAttempts = computed(() => gameState.value?.maxAttempts || 6);
     const attemptsUsed = computed(() => gameState.value?.getGuesses()?.length || 0);
@@ -247,6 +252,9 @@ export default {
       
       console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
+      // Force Vue to re-evaluate computed properties
+      gameStateVersion.value++;
+      
       // Clear current guess immediately to prevent display issues
       const submittedGuess = currentGuess.value;
       currentGuess.value = '';
@@ -362,6 +370,7 @@ export default {
       definition.value = null;
       resetKeyboardState();
       isInitialized.value = true;
+      gameStateVersion.value++; // Force reactivity update
       console.log('New game started, gameState:', gameState.value);
     };
     
