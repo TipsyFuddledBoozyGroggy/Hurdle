@@ -68,6 +68,7 @@ export default {
     const keyboardState = ref({});
     const isInitialized = ref(false);
     const gameStateVersion = ref(0); // Force reactivity trigger
+    const animatingRowIndex = ref(-1); // Track which row is currently animating
 
     
     const keyboardLayout = [
@@ -115,9 +116,10 @@ export default {
       // Add completed guess rows with feedback
       guesses.forEach((guess, guessIndex) => {
         const feedback = guess.getFeedback();
+        const isCurrentlyAnimating = animatingRowIndex.value === guessIndex;
         const row = feedback.map(letterFeedback => ({
           letter: letterFeedback.letter.toUpperCase(),
-          status: letterFeedback.status,
+          status: isCurrentlyAnimating ? 'filled' : letterFeedback.status, // Don't show colors while animating
           active: false
         }));
         rows.push(row);
@@ -279,6 +281,9 @@ export default {
       const feedback = guess.getFeedback();
       const currentRowIndex = gameState.value?.getGuesses()?.length - 1 || 0;
       
+      // Mark this row as animating to prevent status classes from showing
+      animatingRowIndex.value = currentRowIndex;
+      
       // Add flip animation to each tile with a delay
       for (let i = 0; i < 5; i++) {
         await new Promise(resolve => {
@@ -299,6 +304,10 @@ export default {
       
       // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)
       await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      // Clear animating state and force re-render to show final colors
+      animatingRowIndex.value = -1;
+      gameStateVersion.value++;
     };
     
     const showGameOver = async (won) => {
@@ -370,6 +379,7 @@ export default {
       definition.value = null;
       resetKeyboardState();
       isInitialized.value = true;
+      animatingRowIndex.value = -1; // Reset animation state
       gameStateVersion.value++; // Force reactivity update
       console.log('New game started, gameState:', gameState.value);
     };
