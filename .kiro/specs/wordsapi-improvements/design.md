@@ -20,7 +20,7 @@ The improved WordsAPI integration will consist of three main components:
 #### Proposed Changes
 
 ```javascript
-// Fixed API request with proper URL encoding
+// Fixed API request with proper URL encoding and definition validation
 async getRandomUncommonWordFromAPI() {
   const params = new URLSearchParams({
     letterPattern: '^[a-zA-Z]{5}$',  // Only letters, exactly 5 characters
@@ -30,10 +30,57 @@ async getRandomUncommonWordFromAPI() {
   });
   
   const url = `https://wordsapiv1.p.rapidapi.com/words/?${params.toString()}`;
-  // ... rest of implementation
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-RapidAPI-Key': 'your-api-key',
+      'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+    }
+  });
+  
+  if (response.ok) {
+    const data = await response.json();
+    const word = this.extractValidWord(data);
+    
+    if (word && this.validateWordFormat(word)) {
+      // Verify the word has definitions before accepting it
+      const hasDefinition = await this.verifyWordHasDefinition(word);
+      if (hasDefinition) {
+        return word;
+      }
+    }
+  }
+  
+  return null;
 }
 
-// Enhanced word validation
+// Enhanced word validation with definition check
+async verifyWordHasDefinition(word) {
+  try {
+    const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word}`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': 'your-api-key',
+        'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      // Check if the word has definitions
+      return data.results && data.results.length > 0 && 
+             data.results.some(result => result.definition);
+    }
+    
+    return false;
+  } catch (error) {
+    // If we can't verify, assume it has definitions to avoid blocking
+    return true;
+  }
+}
+
+// Strict word format validation
 validateWordFormat(word) {
   return /^[a-zA-Z]{5}$/.test(word);
 }
@@ -42,8 +89,10 @@ validateWordFormat(word) {
 #### Key Improvements
 - Proper URL parameter encoding using `URLSearchParams`
 - Strict regex validation for letters-only words
+- **Definition verification** before accepting words
 - Enhanced error handling and retry logic
 - Better logging for debugging
+- Two-step validation: format check + definition check
 
 ### 2. Rate Limit Header Tracker (`src/WordsAPITracker.js`)
 
@@ -142,7 +191,7 @@ class SmartWordProvider {
       return this.getLocalWord();
     }
     
-    // Try API with header-based tracking
+    // Try API with header-based tracking and definition validation
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const response = await this.makeAPIRequest();
@@ -156,7 +205,15 @@ class SmartWordProvider {
         if (response.ok) {
           const data = await response.json();
           const word = this.extractValidWord(data);
-          if (word) return word;
+          
+          if (word && this.validateWordFormat(word)) {
+            // Verify the word has definitions before accepting
+            const hasDefinition = await this.verifyWordHasDefinition(word);
+            if (hasDefinition) {
+              return word;
+            }
+            // If no definition, continue to retry or fallback
+          }
         }
       } catch (error) {
         if (attempt === 3) break;
@@ -168,10 +225,42 @@ class SmartWordProvider {
     return this.getLocalWord();
   }
   
+  async verifyWordHasDefinition(word) {
+    try {
+      const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word}`, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': 'your-api-key',
+          'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+        }
+      });
+      
+      // Update rate limit info from this request too
+      const rateLimitInfo = this.apiTracker.updateFromHeaders(response);
+      if (rateLimitInfo) {
+        this.checkRateLimitThresholds(rateLimitInfo);
+      }
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Check if the word has at least one definition
+        return data.results && data.results.length > 0 && 
+               data.results.some(result => result.definition && result.definition.trim());
+      }
+      
+      return false;
+    } catch (error) {
+      // If verification fails, assume it has definitions to avoid blocking gameplay
+      console.warn(`Could not verify definition for word: ${word}`, error.message);
+      return true;
+    }
+  }
+  
   shouldUseAPI() {
     // Use headers if available, otherwise fallback to conservative approach
     if (this.apiTracker.lastKnownRemaining !== null) {
-      return this.apiTracker.lastKnownRemaining > 0;
+      // Need at least 2 requests: one for word search, one for definition check
+      return this.apiTracker.lastKnownRemaining >= 2;
     }
     
     // Conservative fallback - assume we can make requests
@@ -185,6 +274,8 @@ class SmartWordProvider {
     if (remaining === 0) {
       console.warn(`⚠️ WordsAPI limit reached! No requests remaining until reset.`);
       this.showUserNotification('API limit reached - using local dictionary');
+    } else if (remaining <= 2) {
+      console.warn(`🚨 WordsAPI usage critical: ${remaining} requests remaining - switching to local dictionary`);
     } else if (remaining <= this.apiTracker.warningThresholds.high) {
       console.warn(`⚠️ WordsAPI usage high: ${remaining} requests remaining (${percentage.toFixed(1)}%)`);
     } else if (remaining <= this.apiTracker.warningThresholds.medium) {
@@ -196,26 +287,36 @@ class SmartWordProvider {
 
 ## Data Flow
 
-### Request Tracking Flow (Header-Based)
+### Request Tracking Flow (Header-Based with Definition Validation)
 
 ```
 1. API Request Initiated
    ↓
-2. Make API Call to WordsAPI
+2. Make API Call to WordsAPI (Word Search)
    ↓
 3. Extract Rate Limit Headers
    ├── x-ratelimit-requests-remaining
    ├── x-ratelimit-requests-limit  
    └── x-ratelimit-requests-reset
    ↓
-4. Update Local Rate Limit State
+4. Validate Word Format (Letters Only)
    ↓
-5. Check Notification Thresholds
-   ├── 0 remaining → Block future requests
+5. Make Second API Call (Definition Check)
+   ↓
+6. Extract Rate Limit Headers (Again)
+   ↓
+7. Verify Word Has Definitions
+   ├── Has Definitions → Accept Word
+   └── No Definitions → Retry or Fallback
+   ↓
+8. Update Local Rate Limit State
+   ↓
+9. Check Notification Thresholds
+   ├── < 2 remaining → Block future requests
    ├── < 250 remaining → Show warning
    └── < 625 remaining → Log info
    ↓
-6. Return Result or Fallback
+10. Return Result or Fallback
 ```
 
 ### Header-Based Advantages

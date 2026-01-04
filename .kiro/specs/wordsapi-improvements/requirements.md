@@ -21,17 +21,20 @@ This specification addresses critical improvements to the WordsAPI integration i
 
 ## Requirements
 
-### Requirement 1: Fix WordsAPI Word Filtering
+### Requirement 1: Fix WordsAPI Word Filtering and Definition Validation
 
-**User Story:** As a player, I want to only receive valid alphabetic words from the game, so that I don't encounter invalid words like "1890S".
+**User Story:** As a player, I want to only receive valid alphabetic words with definitions from the game, so that I don't encounter invalid words like "1890S" or words without definitions.
 
 #### Acceptance Criteria
 
 1. WHEN requesting random words from WordsAPI, THEN the system SHALL use proper letter-pattern filtering to ensure only alphabetic characters
 2. WHEN WordsAPI returns a word, THEN the system SHALL validate that the word contains only letters (a-z, A-Z) before accepting it
-3. WHEN an invalid word is received from WordsAPI, THEN the system SHALL reject it and either retry or fall back to local dictionary
-4. WHEN making WordsAPI requests, THEN the system SHALL use the correct URL format with proper parameter encoding
-5. THE system SHALL never present words containing numbers, symbols, or special characters to players
+3. WHEN WordsAPI returns a word, THEN the system SHALL verify that the word has at least one definition available in WordsAPI
+4. WHEN a word lacks definitions, THEN the system SHALL reject it and either retry or fall back to local dictionary
+5. WHEN an invalid word is received from WordsAPI, THEN the system SHALL reject it and either retry or fall back to local dictionary
+6. WHEN making WordsAPI requests, THEN the system SHALL use the correct URL format with proper parameter encoding
+7. THE system SHALL never present words containing numbers, symbols, or special characters to players
+8. THE system SHALL only present words that have definitions available for display after game completion
 
 ### Requirement 2: Header-Based API Request Tracking
 
@@ -108,10 +111,12 @@ This specification addresses critical improvements to the WordsAPI integration i
 ## Technical Constraints
 
 1. **API Limit**: Maximum 2500 requests per month across all environments
-2. **Response Time**: WordsAPI requests must not block game functionality for more than 3 seconds
-3. **Fallback Requirement**: Local dictionary must always be available as backup
-4. **Cross-Platform**: Tracking must work in both Node.js and browser environments
-5. **Data Persistence**: Usage data must survive application restarts and deployments
+2. **Definition Validation Cost**: Each word requires 2 API requests (search + definition check)
+3. **Effective Word Limit**: ~1250 words per month due to definition validation
+4. **Response Time**: WordsAPI requests must not block game functionality for more than 5 seconds total
+5. **Fallback Requirement**: Local dictionary must always be available as backup
+6. **Cross-Platform**: Tracking must work in both Node.js and browser environments
+7. **Data Persistence**: Usage data must survive application restarts and deployments
 
 ## Success Criteria
 
