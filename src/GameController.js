@@ -42,7 +42,7 @@ class GameController {
    */
   async startNewGame() {
     const targetWord = await this.dictionary.getRandomWord();
-    this.gameState = new GameState(targetWord, 6);
+    this.gameState = new GameState(targetWord, 4);
     return this.gameState;
   }
 

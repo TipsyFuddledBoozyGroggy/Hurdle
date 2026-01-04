@@ -83,7 +83,7 @@ export default {
       return props.gameController?.getGameState() || null;
     });
     const isGameOver = computed(() => gameState.value?.isGameOver() || false);
-    const maxAttempts = computed(() => gameState.value?.maxAttempts || 6);
+    const maxAttempts = computed(() => gameState.value?.maxAttempts || 4);
     const attemptsUsed = computed(() => gameState.value?.getGuesses()?.length || 0);
     
     const boardRows = computed(() => {
@@ -93,7 +93,7 @@ export default {
         console.log('No gameState, creating empty grid');
         // Create empty grid with current guess in first row if typing
         const rows = [];
-        for (let rowIndex = 0; rowIndex < 6; rowIndex++) {
+        for (let rowIndex = 0; rowIndex < 4; rowIndex++) {
           const row = [];
           for (let colIndex = 0; colIndex < 5; colIndex++) {
             const isCurrentRow = rowIndex === 0;
