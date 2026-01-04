@@ -343,6 +343,16 @@ export default {
           }
         });
         
+        // Handle 403 Forbidden (API key issues) gracefully
+        if (response.status === 403) {
+          definition.value = {
+            word: word,
+            partOfSpeech: 'uncommon word',
+            text: 'WordsAPI access limited with demo key. This is a rare or technical English word.'
+          };
+          return;
+        }
+        
         if (!response.ok) {
           // Don't throw error, just handle gracefully
           definition.value = {
