@@ -70,7 +70,7 @@ h1 {
 }
 
 .letter-tile.flipping {
-  animation: flip 0.6s ease-in-out;
+  animation: flip 0.66s ease-in-out;
 }
 
 @keyframes flip {

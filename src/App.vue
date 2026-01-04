@@ -290,15 +290,15 @@ export default {
               setTimeout(() => {
                 tile.classList.remove('flipping');
                 tile.classList.add(feedback[i].status);
-              }, 300); // Half of the flip animation duration
+              }, 660); // Full flip animation duration (0.66s)
             }
             resolve();
           }, i * 100); // Stagger the animations
         });
       }
       
-      // Wait for all animations to complete
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)
+      await new Promise(resolve => setTimeout(resolve, 1100));
     };
     
     const showGameOver = async (won) => {
