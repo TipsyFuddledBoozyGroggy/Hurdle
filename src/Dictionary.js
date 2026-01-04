@@ -3,6 +3,9 @@
  * Manages the word dictionary and provides validation and selection methods
  */
 
+// Import the WordsAPI tracker
+const WordsAPITracker = typeof require !== 'undefined' ? require('./WordsAPITracker.js') : null;
+
 class Dictionary {
   /**
    * Create a Dictionary instance
@@ -21,10 +24,52 @@ class Dictionary {
     this.wordSet = new Set(words.map(word => word.toLowerCase()));
     this.wordArray = Array.from(this.wordSet);
     
-    // WordsAPI configuration for uncommon words
-    this.wordsApiEnabled = typeof fetch !== 'undefined'; // Only in browser
+    // Environment detection
+    this.isProduction = this.detectProductionEnvironment();
+    
+    // WordsAPI configuration - only enabled in production
+    this.wordsApiEnabled = typeof fetch !== 'undefined' && this.isProduction;
     this.apiRetryCount = 0;
     this.maxRetries = 3;
+    
+    // Initialize API tracker only in production
+    this.apiTracker = (WordsAPITracker && this.isProduction) ? new WordsAPITracker() : null;
+    this.limitExceededMessageShown = false;
+    
+    // Log environment mode
+    if (typeof console !== 'undefined') {
+      console.log(`Dictionary initialized in ${this.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+      console.log(`WordsAPI ${this.wordsApiEnabled ? 'ENABLED' : 'DISABLED'} - using ${this.wordsApiEnabled ? 'API + local fallback' : 'local dictionary only'}`);
+    }
+  }
+
+  /**
+   * Detect if we're running in production environment
+   * @returns {boolean} True if running in production
+   */
+  detectProductionEnvironment() {
+    // Check various indicators of production environment
+    
+    // 1. Check NODE_ENV environment variable (Node.js)
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
+      return true;
+    }
+    
+    // 2. Check if we're in browser and not on localhost
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const isLocalhost = hostname === 'localhost' || 
+                         hostname === '127.0.0.1' || 
+                         hostname.startsWith('192.168.') ||
+                         hostname.startsWith('10.') ||
+                         hostname.endsWith('.local');
+      
+      // Production if not localhost and not file:// protocol
+      return !isLocalhost && window.location.protocol !== 'file:';
+    }
+    
+    // 3. Default to development if we can't determine
+    return false;
   }
 
   /**
@@ -37,8 +82,23 @@ class Dictionary {
       return false;
     }
 
+    // In development mode, always use local dictionary
+    if (!this.isProduction) {
+      return this.wordSet.has(word.toLowerCase());
+    }
+
+    // Check API limit before making request (production only)
+    if (this.apiTracker && !this.apiTracker.canMakeRequest()) {
+      if (!this.limitExceededMessageShown) {
+        console.warn(this.apiTracker.getUsageMessage());
+        this.limitExceededMessageShown = true;
+      }
+      // Fall back to local dictionary
+      return this.wordSet.has(word.toLowerCase());
+    }
+
     try {
-      // Use WordsAPI for word validation
+      // Use WordsAPI for word validation (production only)
       const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
         method: 'GET',
         headers: {
@@ -46,6 +106,15 @@ class Dictionary {
           'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
         }
       });
+
+      // Record the API request
+      if (this.apiTracker) {
+        const usage = this.apiTracker.recordRequest();
+        // Log usage periodically
+        if (usage.count % 100 === 0 || usage.count >= 2400) {
+          console.log(this.apiTracker.getUsageMessage());
+        }
+      }
 
       // WordsAPI returns 200 for valid words, 404 for invalid words
       // 403 means API key issue - fall back to local dictionary
@@ -62,11 +131,40 @@ class Dictionary {
   }
 
   /**
+   * Synchronous word validation using only the local dictionary (for testing)
+   * @param {string} word - The word to validate
+   * @returns {boolean} True if the word exists in the local dictionary
+   */
+  isValidWordSync(word) {
+    if (typeof word !== 'string' || word.length !== 5) {
+      return false;
+    }
+    return this.wordSet.has(word.toLowerCase());
+  }
+
+  /**
    * Get a random uncommon word from WordsAPI or fallback to local dictionary
    * @returns {Promise<string>} A random 5-letter uncommon word
    */
   async getRandomWord() {
-    // Try to get an uncommon word from WordsAPI first
+    // In development mode, always use local dictionary
+    if (!this.isProduction) {
+      const randomIndex = Math.floor(Math.random() * this.wordArray.length);
+      return this.wordArray[randomIndex];
+    }
+
+    // Check API limit before making request (production only)
+    if (this.apiTracker && !this.apiTracker.canMakeRequest()) {
+      if (!this.limitExceededMessageShown) {
+        console.warn(this.apiTracker.getUsageMessage());
+        this.limitExceededMessageShown = true;
+      }
+      // Fall back to local dictionary
+      const randomIndex = Math.floor(Math.random() * this.wordArray.length);
+      return this.wordArray[randomIndex];
+    }
+
+    // Try to get an uncommon word from WordsAPI first (production only)
     if (this.wordsApiEnabled && this.apiRetryCount < this.maxRetries) {
       try {
         const uncommonWord = await this.getRandomUncommonWordFromAPI();
@@ -91,10 +189,11 @@ class Dictionary {
    */
   async getRandomUncommonWordFromAPI() {
     try {
-      // Search for random 5-letter words with low frequency (1-3 = uncommon)
+      // Search for random 5-letter words with letters only (no numbers/symbols)
+      // letterPattern=^[a-zA-Z]{5}$ ensures only letters
       // frequencyMin=1, frequencyMax=3 targets rare words
       const response = await fetch(
-        'https://wordsapiv1.p.rapidapi.com/words/?letterPattern=^.{5}$&frequencyMin=1&frequencyMax=3&random=true',
+        'https://wordsapiv1.p.rapidapi.com/words/?letterPattern=^[a-zA-Z]{5}$&frequencyMin=1&frequencyMax=3&random=true',
         {
           method: 'GET',
           headers: {
@@ -103,6 +202,15 @@ class Dictionary {
           }
         }
       );
+
+      // Record the API request
+      if (this.apiTracker) {
+        const usage = this.apiTracker.recordRequest();
+        // Log usage periodically
+        if (usage.count % 100 === 0 || usage.count >= 2400) {
+          console.log(this.apiTracker.getUsageMessage());
+        }
+      }
 
       // Handle 403 Forbidden (API key issues) gracefully
       if (response.status === 403) {
@@ -116,12 +224,17 @@ class Dictionary {
 
       const data = await response.json();
       
+      // Helper function to check if word contains only letters
+      const isLettersOnly = (word) => /^[a-zA-Z]+$/.test(word);
+      
       // WordsAPI returns either a single word object or search results
-      if (data.word && data.word.length === 5) {
+      if (data.word && data.word.length === 5 && isLettersOnly(data.word)) {
         return data.word.toLowerCase();
       } else if (data.results && data.results.data && data.results.data.length > 0) {
-        // Pick a random word from the results
-        const words = data.results.data.filter(word => word.length === 5);
+        // Pick a random word from the results, filtering for letters only
+        const words = data.results.data.filter(word => 
+          word.length === 5 && isLettersOnly(word)
+        );
         if (words.length > 0) {
           const randomIndex = Math.floor(Math.random() * words.length);
           return words[randomIndex].toLowerCase();
@@ -140,6 +253,22 @@ class Dictionary {
    */
   size() {
     return this.wordArray.length;
+  }
+
+  /**
+   * Get WordsAPI usage statistics
+   * @returns {Object|null} Usage statistics or null if tracker not available
+   */
+  getAPIUsageStats() {
+    return this.apiTracker ? this.apiTracker.getUsageStats() : null;
+  }
+
+  /**
+   * Get user-friendly API usage message
+   * @returns {string|null} Usage message or null if tracker not available
+   */
+  getAPIUsageMessage() {
+    return this.apiTracker ? this.apiTracker.getUsageMessage() : null;
   }
 }
 

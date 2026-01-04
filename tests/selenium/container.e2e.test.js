@@ -35,7 +35,7 @@ describe('Hard Wordle Container E2E Tests', () => {
     
     test('should display game board with proper structure', async () => {
       const rows = await driver.findElements(By.css('.guess-row'));
-      expect(rows.length).toBe(6);
+      expect(rows.length).toBe(4);
       
       for (let i = 0; i < rows.length; i++) {
         const tiles = await rows[i].findElements(By.css('.letter-tile'));
@@ -93,7 +93,7 @@ describe('Hard Wordle Container E2E Tests', () => {
     test('should update attempts counter correctly', async () => {
       const attemptsElement = await driver.findElement(By.css('#attempts-remaining'));
       let attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 0/6');
+      expect(attemptsText).toBe('Attempts: 0/4');
       
       // Make a guess
       await driver.findElement(By.css('body')).sendKeys('APPLE');
@@ -104,7 +104,7 @@ describe('Hard Wordle Container E2E Tests', () => {
       
       // Check updated attempts
       attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 1/6');
+      expect(attemptsText).toBe('Attempts: 1/4');
     });
     
     test('should handle on-screen keyboard clicks', async () => {
@@ -135,7 +135,7 @@ describe('Hard Wordle Container E2E Tests', () => {
       // Verify reset
       const attemptsElement = await driver.findElement(By.css('#attempts-remaining'));
       const attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 0/6');
+      expect(attemptsText).toBe('Attempts: 0/4');
       
       // Check first row is empty
       const firstRowTiles = await driver.findElements(By.css('.guess-row:first-child .letter-tile'));

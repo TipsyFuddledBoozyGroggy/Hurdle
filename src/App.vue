@@ -38,6 +38,10 @@
       {{ message }}
     </div>
     
+    <div v-if="apiUsageMessage" id="api-usage-area" :class="['api-usage', apiUsageClass]">
+      {{ apiUsageMessage }}
+    </div>
+    
     <div v-if="definition" id="definition-area">
       <div class="word-title">{{ definition.word }}</div>
       <div class="definition-text">
@@ -69,6 +73,8 @@ export default {
     const isInitialized = ref(false);
     const gameStateVersion = ref(0); // Force reactivity trigger
     const animatingRowIndex = ref(-1); // Track which row is currently animating
+    const apiUsageMessage = ref('');
+    const apiUsageClass = ref('');
 
     
     const keyboardLayout = [
@@ -183,6 +189,36 @@ export default {
       keyboardState.value = {};
     };
     
+    const updateAPIUsage = () => {
+      if (props.gameController?.dictionary?.getAPIUsageMessage) {
+        const usageMsg = props.gameController.dictionary.getAPIUsageMessage();
+        const stats = props.gameController.dictionary.getAPIUsageStats();
+        
+        if (usageMsg && stats) {
+          apiUsageMessage.value = usageMsg;
+          
+          // Set CSS class based on usage level
+          if (stats.used >= stats.limit) {
+            apiUsageClass.value = 'limit-exceeded';
+          } else if (stats.percentage >= 90) {
+            apiUsageClass.value = 'high-usage';
+          } else if (stats.percentage >= 75) {
+            apiUsageClass.value = 'medium-usage';
+          } else {
+            apiUsageClass.value = 'low-usage';
+          }
+        } else {
+          // Clear API usage display if not available (development mode)
+          apiUsageMessage.value = '';
+          apiUsageClass.value = '';
+        }
+      } else {
+        // Clear API usage display if not available
+        apiUsageMessage.value = '';
+        apiUsageClass.value = '';
+      }
+    };
+    
     const handleKeyPress = (key) => {
       console.log('Key pressed:', key);
       if (!isInitialized.value || isGameOver.value || !props.gameController) return;
@@ -269,6 +305,9 @@ export default {
         await animateTileFlip(result.guess);
         updateKeyboardState(result.guess);
         console.log('Updated keyboard state for guess');
+        
+        // Update API usage display after each guess
+        updateAPIUsage();
       }
       
       if (result.gameStatus === 'won') {
@@ -419,6 +458,8 @@ export default {
       console.log('Component mounted, initializing game...');
       if (props.gameController) {
         await handleNewGame();
+        // Update API usage display
+        updateAPIUsage();
       } else {
         console.error('Game controller not available on mount');
       }
@@ -443,6 +484,8 @@ export default {
       maxAttempts,
       attemptsUsed,
       isInitialized,
+      apiUsageMessage,
+      apiUsageClass,
       handleKeyPress,
       handleGlobalKeydown,
       handleGuessSubmit,

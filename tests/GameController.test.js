@@ -35,7 +35,7 @@ describe('GameController', () => {
       expect(gameState.getTargetWord()).toHaveLength(5);
       expect(await dictionary.isValidWord(gameState.getTargetWord())).toBe(true);
       expect(gameState.getGuesses()).toHaveLength(0);
-      expect(gameState.getRemainingAttempts()).toBe(6);
+      expect(gameState.getRemainingAttempts()).toBe(4);
       expect(gameState.getGameStatus()).toBe('in-progress');
     });
 
@@ -48,7 +48,7 @@ describe('GameController', () => {
       const newGameState = await gameController.startNewGame();
       
       expect(newGameState.getGuesses()).toHaveLength(0);
-      expect(newGameState.getRemainingAttempts()).toBe(6);
+      expect(newGameState.getRemainingAttempts()).toBe(4);
       expect(newGameState.getGameStatus()).toBe('in-progress');
     });
   });
@@ -196,9 +196,9 @@ describe('GameController', () => {
      * For any game state with previous guesses, starting a new game must result 
      * in a fresh state with no previous guesses and a different target word.
      */
-    test('Property 3: State isolation between games - new games have fresh state', () => {
-      fc.assert(
-        fc.property(
+    test('Property 3: State isolation between games - new games have fresh state', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate array of valid dictionary words for testing
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
@@ -206,41 +206,41 @@ describe('GameController', () => {
           ),
           // Generate number of guesses to make in first game (1-5)
           fc.integer({ min: 1, max: 5 }),
-          (words, numGuesses) => {
+          async (words, numGuesses) => {
             fc.pre(words.length >= 10);
             
             const testDict = new Dictionary(words);
             const controller = new GameController(testDict);
             
             // Start first game and make some guesses
-            const firstGameState = controller.startNewGame();
+            const firstGameState = await controller.startNewGame();
             const firstTargetWord = firstGameState.getTargetWord();
             
             for (let i = 0; i < numGuesses && i < words.length; i++) {
               // Make sure we don't win the game
               if (words[i] !== firstTargetWord && controller.getGameState().getGameStatus() === 'in-progress') {
-                controller.submitGuess(words[i]);
+                await controller.submitGuess(words[i]);
               }
             }
             
             const firstGameGuessCount = controller.getGameState().getGuesses().length;
             
             // Start a new game
-            const secondGameState = controller.startNewGame();
+            const secondGameState = await controller.startNewGame();
             const secondTargetWord = secondGameState.getTargetWord();
             
             // New game must have zero guesses
             expect(secondGameState.getGuesses()).toHaveLength(0);
             
             // New game must have full attempts
-            expect(secondGameState.getRemainingAttempts()).toBe(6);
+            expect(secondGameState.getRemainingAttempts()).toBe(4);
             
             // New game must be in-progress
             expect(secondGameState.getGameStatus()).toBe('in-progress');
             
             // Target word should be valid (5 letters and in dictionary)
             expect(secondTargetWord).toHaveLength(5);
-            expect(testDict.isValidWord(secondTargetWord)).toBe(true);
+            expect(testDict.isValidWordSync(secondTargetWord)).toBe(true);
             
             // Note: We can't guarantee different target words due to randomness,
             // but we can verify state isolation regardless
@@ -257,17 +257,17 @@ describe('GameController', () => {
      * For any string input, the system must accept it as a valid guess 
      * only if it is exactly 5 characters long.
      */
-    test('Property 4: Length validation - only 5-letter strings are accepted', () => {
-      fc.assert(
-        fc.property(
+    test('Property 4: Length validation - only 5-letter strings are accepted', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate strings of various lengths
           fc.string({ minLength: 0, maxLength: 10 }),
-          (input) => {
+          async (input) => {
             const testDict = new Dictionary(['apple', 'bread', 'crane', 'delta', 'eagle']);
             const controller = new GameController(testDict);
-            controller.startNewGame();
+            await controller.startNewGame();
             
-            const result = controller.submitGuess(input);
+            const result = await controller.submitGuess(input);
             
             // If the input is not exactly 5 letters, it must be rejected
             if (input.length !== 5) {
@@ -276,7 +276,7 @@ describe('GameController', () => {
               
               // Game state should not change
               expect(controller.getGameState().getGuesses()).toHaveLength(0);
-              expect(controller.getGameState().getRemainingAttempts()).toBe(6);
+              expect(controller.getGameState().getRemainingAttempts()).toBe(4);
             }
             // If it is 5 letters, validation depends on dictionary
             else {
@@ -299,9 +299,9 @@ describe('GameController', () => {
      * For any invalid guess (wrong length or not in dictionary), submitting it 
      * must not change the number of remaining attempts or add it to the guess history.
      */
-    test('Property 6: Invalid guess preservation - invalid guesses do not affect game state', () => {
-      fc.assert(
-        fc.property(
+    test('Property 6: Invalid guess preservation - invalid guesses do not affect game state', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate a valid dictionary
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
@@ -315,12 +315,12 @@ describe('GameController', () => {
             // 5-letter string that's unlikely to be in dictionary
             fc.constant('zzzzz')
           ),
-          (words, invalidGuess) => {
+          async (words, invalidGuess) => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
             const controller = new GameController(testDict);
-            controller.startNewGame();
+            await controller.startNewGame();
             
             // Record initial state
             const initialGuessCount = controller.getGameState().getGuesses().length;
@@ -328,7 +328,7 @@ describe('GameController', () => {
             const initialStatus = controller.getGameState().getGameStatus();
             
             // Submit invalid guess
-            const result = controller.submitGuess(invalidGuess);
+            const result = await controller.submitGuess(invalidGuess);
             
             // Verify it was rejected
             expect(result.success).toBe(false);
@@ -350,15 +350,15 @@ describe('GameController', () => {
      * For any valid word, submitting it in different cases (uppercase, lowercase, mixed) 
      * must produce identical feedback results.
      */
-    test('Property 8: Case normalization - case variations produce identical feedback', () => {
-      fc.assert(
-        fc.property(
+    test('Property 8: Case normalization - case variations produce identical feedback', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate a dictionary with known words
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
             { minLength: 5, maxLength: 20 }
           ),
-          (words) => {
+          async (words) => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
@@ -371,21 +371,21 @@ describe('GameController', () => {
             
             // Test lowercase
             const controller1 = new GameController(testDict);
-            controller1.gameState = new (require('../src/GameState'))(targetWord, 6);
-            const result1 = controller1.submitGuess(guessWord.toLowerCase());
+            controller1.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result1 = await controller1.submitGuess(guessWord.toLowerCase());
             
             // Test uppercase
             const controller2 = new GameController(testDict);
-            controller2.gameState = new (require('../src/GameState'))(targetWord, 6);
-            const result2 = controller2.submitGuess(guessWord.toUpperCase());
+            controller2.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result2 = await controller2.submitGuess(guessWord.toUpperCase());
             
             // Test mixed case
             const mixedCase = guessWord.split('').map((c, i) => 
               i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()
             ).join('');
             const controller3 = new GameController(testDict);
-            controller3.gameState = new (require('../src/GameState'))(targetWord, 6);
-            const result3 = controller3.submitGuess(mixedCase);
+            controller3.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result3 = await controller3.submitGuess(mixedCase);
             
             // All should succeed
             expect(result1.success).toBe(true);
@@ -417,26 +417,26 @@ describe('GameController', () => {
      * For any game state where a guess exactly matches the target word, 
      * the game status must be 'won' and no further guesses must be accepted.
      */
-    test('Property 12: Win condition - matching target word wins the game', () => {
-      fc.assert(
-        fc.property(
+    test('Property 12: Win condition - matching target word wins the game', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate a dictionary
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
             { minLength: 5, maxLength: 20 }
           ),
-          (words) => {
+          async (words) => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
             const controller = new GameController(testDict);
             
             // Start a game
-            const gameState = controller.startNewGame();
+            const gameState = await controller.startNewGame();
             const targetWord = gameState.getTargetWord();
             
             // Submit the target word as a guess
-            const result = controller.submitGuess(targetWord);
+            const result = await controller.submitGuess(targetWord);
             
             // The guess must succeed
             expect(result.success).toBe(true);
@@ -448,7 +448,7 @@ describe('GameController', () => {
             
             // Try to submit another guess
             const anotherWord = words.find(w => w !== targetWord) || 'apple';
-            const result2 = controller.submitGuess(anotherWord);
+            const result2 = await controller.submitGuess(anotherWord);
             
             // The second guess must be rejected
             expect(result2.success).toBe(false);
@@ -469,43 +469,43 @@ describe('GameController', () => {
      * For any game state where six guesses have been made without matching 
      * the target word, the game status must be 'lost'.
      */
-    test('Property 13: Loss condition - six wrong guesses loses the game', () => {
-      fc.assert(
-        fc.property(
-          // Generate a dictionary with at least 7 words
+    test('Property 13: Loss condition - four wrong guesses loses the game', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          // Generate a dictionary with at least 5 words
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
-            { minLength: 7, maxLength: 20 }
+            { minLength: 5, maxLength: 20 }
           ),
-          (words) => {
-            fc.pre(words.length >= 7);
+          async (words) => {
+            fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
             const controller = new GameController(testDict);
             
             // Start a game
-            const gameState = controller.startNewGame();
+            const gameState = await controller.startNewGame();
             const targetWord = gameState.getTargetWord();
             
-            // Get 6 words that are not the target
-            const wrongWords = words.filter(w => w !== targetWord).slice(0, 6);
+            // Get 4 words that are not the target
+            const wrongWords = words.filter(w => w !== targetWord).slice(0, 4);
             
-            // Need at least 6 wrong words
-            fc.pre(wrongWords.length >= 6);
+            // Need at least 4 wrong words
+            fc.pre(wrongWords.length >= 4);
             
-            // Submit 6 wrong guesses
-            for (let i = 0; i < 6; i++) {
-              const result = controller.submitGuess(wrongWords[i]);
+            // Submit 4 wrong guesses
+            for (let i = 0; i < 4; i++) {
+              const result = await controller.submitGuess(wrongWords[i]);
               
               // Each guess should succeed (valid word)
               expect(result.success).toBe(true);
               
               // Check status after each guess
-              if (i < 5) {
+              if (i < 3) {
                 // Game should still be in progress
                 expect(result.gameStatus).toBe('in-progress');
               } else {
-                // After 6th guess, game should be lost
+                // After 4th guess, game should be lost
                 expect(result.gameStatus).toBe('lost');
               }
             }
@@ -513,11 +513,11 @@ describe('GameController', () => {
             // Final verification
             expect(controller.getGameState().getGameStatus()).toBe('lost');
             expect(controller.getGameState().isGameOver()).toBe(true);
-            expect(controller.getGameState().getGuesses()).toHaveLength(6);
+            expect(controller.getGameState().getGuesses()).toHaveLength(4);
             expect(controller.getGameState().getRemainingAttempts()).toBe(0);
             
             // Try to submit another guess
-            const result = controller.submitGuess(wrongWords[0]);
+            const result = await controller.submitGuess(wrongWords[0]);
             expect(result.success).toBe(false);
             expect(result.error).toBe('Game is over. Start a new game!');
           }
@@ -533,26 +533,26 @@ describe('GameController', () => {
      * For any game state, the game status must accurately reflect whether 
      * the game is 'in-progress', 'won', or 'lost' based on the guesses and target word.
      */
-    test('Property 14: Game status accuracy - status reflects game state correctly', () => {
-      fc.assert(
-        fc.property(
+    test('Property 14: Game status accuracy - status reflects game state correctly', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate a dictionary
           fc.array(
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
-            { minLength: 7, maxLength: 20 }
+            { minLength: 5, maxLength: 20 }
           ),
-          // Generate number of guesses to make (0-7)
-          fc.integer({ min: 0, max: 7 }),
+          // Generate number of guesses to make (0-4)
+          fc.integer({ min: 0, max: 4 }),
           // Generate whether to win the game
           fc.boolean(),
-          (words, numGuesses, shouldWin) => {
-            fc.pre(words.length >= 7);
+          async (words, numGuesses, shouldWin) => {
+            fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
             const controller = new GameController(testDict);
             
             // Start a game
-            const gameState = controller.startNewGame();
+            const gameState = await controller.startNewGame();
             const targetWord = gameState.getTargetWord();
             
             // Get words for guessing
@@ -562,16 +562,16 @@ describe('GameController', () => {
             let wonGame = false;
             
             // Make guesses
-            for (let i = 0; i < numGuesses && actualGuesses < 6; i++) {
+            for (let i = 0; i < numGuesses && actualGuesses < 4; i++) {
               if (shouldWin && i === numGuesses - 1) {
                 // Win on the last guess
-                controller.submitGuess(targetWord);
+                await controller.submitGuess(targetWord);
                 wonGame = true;
                 actualGuesses++;
                 break;
               } else if (wrongWords[i]) {
                 // Make a wrong guess
-                controller.submitGuess(wrongWords[i]);
+                await controller.submitGuess(wrongWords[i]);
                 actualGuesses++;
               }
             }
@@ -583,8 +583,8 @@ describe('GameController', () => {
               // If we guessed the target word, status must be 'won'
               expect(finalStatus).toBe('won');
               expect(controller.getGameState().isGameOver()).toBe(true);
-            } else if (actualGuesses >= 6) {
-              // If we made 6 guesses without winning, status must be 'lost'
+            } else if (actualGuesses >= 4) {
+              // If we made 4 guesses without winning, status must be 'lost'
               expect(finalStatus).toBe('lost');
               expect(controller.getGameState().isGameOver()).toBe(true);
             } else {
@@ -597,7 +597,7 @@ describe('GameController', () => {
             expect(controller.getGameState().getGuesses()).toHaveLength(actualGuesses);
             
             // Verify remaining attempts
-            expect(controller.getGameState().getRemainingAttempts()).toBe(6 - actualGuesses);
+            expect(controller.getGameState().getRemainingAttempts()).toBe(4 - actualGuesses);
           }
         ),
         { numRuns: 100 }

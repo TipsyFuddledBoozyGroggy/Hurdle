@@ -11,9 +11,9 @@ class GameState {
   /**
    * Create a GameState instance
    * @param {string} targetWord - The target word to guess (5 letters)
-   * @param {number} maxAttempts - Maximum number of attempts allowed (default: 6)
+   * @param {number} maxAttempts - Maximum number of attempts allowed (default: 4)
    */
-  constructor(targetWord, maxAttempts = 6) {
+  constructor(targetWord, maxAttempts = 4) {
     if (typeof targetWord !== 'string') {
       throw new Error('Target word must be a string');
     }

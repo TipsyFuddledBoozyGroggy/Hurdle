@@ -316,3 +316,46 @@ button:disabled {
     gap: 6px;
   }
 }
+
+/* API Usage Display */
+#api-usage-area {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin: 10px 0;
+  border: 1px solid;
+}
+
+.api-usage.low-usage {
+  background-color: #1a4d1a;
+  border-color: #538d4e;
+  color: #a8d4a8;
+}
+
+.api-usage.medium-usage {
+  background-color: #4d3d1a;
+  border-color: #b59f3b;
+  color: #d4c8a8;
+}
+
+.api-usage.high-usage {
+  background-color: #4d2a1a;
+  border-color: #d4851a;
+  color: #d4b8a8;
+}
+
+.api-usage.limit-exceeded {
+  background-color: #4d1a1a;
+  border-color: #d32f2f;
+  color: #d4a8a8;
+  font-weight: bold;
+}
+
+/* Hide API usage on small screens to save space */
+@media (max-width: 480px) {
+  #api-usage-area {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+  }
+}

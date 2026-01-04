@@ -5,14 +5,14 @@ Hurdle is a challenging word-guessing game based on Wordle, featuring over 5000 
 ## Core Features
 
 - **Enhanced Difficulty**: Uses comprehensive English dictionary with 5000+ words
-- **Classic Gameplay**: 6 attempts to guess a 5-letter word with color-coded feedback
+- **Classic Gameplay**: 4 attempts to guess a 5-letter word with color-coded feedback
 - **Statistics Tracking**: Win rates, streaks, and guess distribution stored in MySQL
 - **Word Definitions**: Shows definition of target word after game completion
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Game Rules
 
-- 6 attempts to guess a 5-letter word
+- 4 attempts to guess a 5-letter word
 - **Green**: Correct letter in correct position  
 - **Yellow**: Correct letter in wrong position
 - **Gray**: Letter not in the word

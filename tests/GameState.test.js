@@ -10,19 +10,19 @@ const fc = require('fast-check');
 describe('GameState', () => {
   describe('constructor', () => {
     test('should create a game state with valid parameters', () => {
-      const gameState = new GameState('apple', 6);
+      const gameState = new GameState('apple', 4);
       
       expect(gameState.getTargetWord()).toBe('apple');
-      expect(gameState.maxAttempts).toBe(6);
+      expect(gameState.maxAttempts).toBe(4);
       expect(gameState.getGameStatus()).toBe('in-progress');
       expect(gameState.getGuesses()).toEqual([]);
-      expect(gameState.getRemainingAttempts()).toBe(6);
+      expect(gameState.getRemainingAttempts()).toBe(4);
     });
 
-    test('should use default maxAttempts of 6', () => {
+    test('should use default maxAttempts of 4', () => {
       const gameState = new GameState('apple');
       
-      expect(gameState.maxAttempts).toBe(6);
+      expect(gameState.maxAttempts).toBe(4);
     });
 
     test('should normalize target word to lowercase', () => {
@@ -57,7 +57,7 @@ describe('GameState', () => {
       
       expect(gameState.getGuesses()).toHaveLength(1);
       expect(gameState.getGuesses()[0]).toBe(guess);
-      expect(gameState.getRemainingAttempts()).toBe(5);
+      expect(gameState.getRemainingAttempts()).toBe(3);
     });
 
     test('should update status to won when guess matches target', () => {
@@ -109,17 +109,17 @@ describe('GameState', () => {
 
   describe('getRemainingAttempts', () => {
     test('should return correct remaining attempts', () => {
-      const gameState = new GameState('apple', 6);
+      const gameState = new GameState('apple', 4);
       
-      expect(gameState.getRemainingAttempts()).toBe(6);
+      expect(gameState.getRemainingAttempts()).toBe(4);
       
       const feedback1 = FeedbackGenerator.generateFeedback('bread', 'apple');
       gameState.addGuess(new Guess('bread', feedback1));
-      expect(gameState.getRemainingAttempts()).toBe(5);
+      expect(gameState.getRemainingAttempts()).toBe(3);
       
       const feedback2 = FeedbackGenerator.generateFeedback('crane', 'apple');
       gameState.addGuess(new Guess('crane', feedback2));
-      expect(gameState.getRemainingAttempts()).toBe(4);
+      expect(gameState.getRemainingAttempts()).toBe(2);
     });
   });
 

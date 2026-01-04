@@ -190,8 +190,8 @@ async function playGameToLoss(wrapper, gameController) {
   const targetWord = gameController.getGameState().getTargetWord();
   const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE', 'EAGLE', 'FLAME'];
   
-  // Make 6 wrong guesses (avoid the target word)
-  for (let i = 0; i < 6; i++) {
+  // Make 4 wrong guesses (avoid the target word)
+  for (let i = 0; i < 4; i++) {
     let guessWord = testWords[i];
     // Make sure we don't accidentally guess the target word
     if (guessWord === targetWord.toUpperCase()) {

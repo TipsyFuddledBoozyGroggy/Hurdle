@@ -33,7 +33,7 @@ describe('UI and GameController Integration Tests', () => {
   describe('UI Reflects Game State Changes', () => {
     test('should update attempts counter when game state changes', async () => {
       // Initial state
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
       
       // Make first guess
       await typeWord(wrapper, 'APPLE');
@@ -44,7 +44,7 @@ describe('UI and GameController Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Verify UI reflects the state change
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/4');
       expect(gameController.getGameState().getGuesses().length).toBe(1);
       
       // Make second guess
@@ -56,7 +56,7 @@ describe('UI and GameController Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Verify UI continues to reflect state changes
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 2/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 2/4');
       expect(gameController.getGameState().getGuesses().length).toBe(2);
     }, 10000);
 
@@ -122,10 +122,10 @@ describe('UI and GameController Integration Tests', () => {
 
     test('should show loss message when game controller indicates loss', async () => {
       const targetWord = gameController.getGameState().getTargetWord();
-      const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE', 'EAGLE', 'FLAME'];
+      const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE'];
       
-      // Make 6 wrong guesses
-      for (let i = 0; i < 6; i++) {
+      // Make 4 wrong guesses
+      for (let i = 0; i < 4; i++) {
         let guessWord = testWords[i];
         // Make sure we don't accidentally guess the target word
         if (guessWord === targetWord.toUpperCase()) {
@@ -153,7 +153,7 @@ describe('UI and GameController Integration Tests', () => {
 
     test('should update remaining attempts display to match game state', async () => {
       const maxAttempts = gameController.getGameState().maxAttempts;
-      expect(maxAttempts).toBe(6);
+      expect(maxAttempts).toBe(4);
       
       // Get the target word to avoid using it in tests
       const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
@@ -552,7 +552,7 @@ describe('UI and GameController Integration Tests', () => {
       for (let i = 0; i < testWords.length; i++) {
         // Before guess
         const gameStateBefore = gameController.getGameState();
-        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i}/6`);
+        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i}/4`);
         expect(gameStateBefore.getGuesses().length).toBe(i);
         
         // Make guess with a word that definitely won't win
@@ -565,7 +565,7 @@ describe('UI and GameController Integration Tests', () => {
         
         // After guess
         const gameStateAfter = gameController.getGameState();
-        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i + 1}/6`);
+        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i + 1}/4`);
         expect(gameStateAfter.getGuesses().length).toBe(i + 1);
         
         // Verify guess was recorded correctly
@@ -627,7 +627,7 @@ describe('UI and GameController Integration Tests', () => {
       expect(gameState.getGuesses()[1].word).toBe(rapidGuesses[1].toLowerCase());
       
       // Verify UI reflects both guesses
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 2/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 2/4');
       const boardState = getBoardState(wrapper);
       expect(boardState[0].map(tile => tile.letter).join('')).toBe(rapidGuesses[0]);
       expect(boardState[1].map(tile => tile.letter).join('')).toBe(rapidGuesses[1]);

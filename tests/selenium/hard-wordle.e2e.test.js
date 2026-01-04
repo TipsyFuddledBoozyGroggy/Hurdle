@@ -24,9 +24,9 @@ describe('Hard Wordle E2E Tests', () => {
   });
   
   describe('Game Board and Tile Tests', () => {
-    test('should display game board with 6 rows and 5 tiles each', async () => {
+    test('should display game board with 4 rows and 5 tiles each', async () => {
       const rows = await driver.findElements(By.css('.guess-row'));
-      expect(rows.length).toBe(6);
+      expect(rows.length).toBe(4);
       
       for (let i = 0; i < rows.length; i++) {
         const tiles = await rows[i].findElements(By.css('.letter-tile'));
@@ -271,7 +271,7 @@ describe('Hard Wordle E2E Tests', () => {
     test('should update attempts counter', async () => {
       const attemptsElement = await driver.findElement(By.css('#attempts-remaining'));
       let attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 0/6');
+      expect(attemptsText).toBe('Attempts: 0/4');
       
       // Make a valid guess
       await driver.findElement(By.css('body')).sendKeys('APPLE');
@@ -282,7 +282,7 @@ describe('Hard Wordle E2E Tests', () => {
       
       // Check updated attempts
       attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 1/6');
+      expect(attemptsText).toBe('Attempts: 1/4');
     });
     
     test('should start new game when button clicked', async () => {
@@ -301,7 +301,7 @@ describe('Hard Wordle E2E Tests', () => {
       // Check that attempts counter reset
       const attemptsElement = await driver.findElement(By.css('#attempts-remaining'));
       const attemptsText = await attemptsElement.getText();
-      expect(attemptsText).toBe('Attempts: 0/6');
+      expect(attemptsText).toBe('Attempts: 0/4');
       
       // Check that first row tiles are empty
       const firstRowTiles = await driver.findElements(By.css('.guess-row:first-child .letter-tile'));

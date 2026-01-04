@@ -40,7 +40,7 @@ describe('App.vue Integration Tests', () => {
       const targetWord = gameController.getGameState().getTargetWord();
       
       // Verify initial state
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
       expect(await getDisplayedMessage(wrapper)).toBeNull();
       
       // Type and submit the correct word
@@ -65,7 +65,7 @@ describe('App.vue Integration Tests', () => {
       expect(message.classes).toContain('success');
       
       // Verify attempts counter updated
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/4');
       
       // Verify board shows correct feedback (all green)
       const finalBoard = getBoardState(wrapper);
@@ -81,12 +81,12 @@ describe('App.vue Integration Tests', () => {
       }
     }, 15000);
 
-    test('should win on the last attempt (6th guess)', async () => {
+    test('should win on the last attempt (4th guess)', async () => {
       const targetWord = gameController.getGameState().getTargetWord();
-      const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE', 'EAGLE'];
+      const testWords = ['APPLE', 'BREAD', 'CRANE'];
       
-      // Make 5 wrong guesses
-      for (let i = 0; i < 5; i++) {
+      // Make 3 wrong guesses
+      for (let i = 0; i < 3; i++) {
         let guessWord = testWords[i];
         // Make sure we don't accidentally guess the target word
         if (guessWord === targetWord.toUpperCase()) {
@@ -98,10 +98,10 @@ describe('App.vue Integration Tests', () => {
         await waitForUpdates();
       }
       
-      // Verify we're at 5 attempts
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 5/6');
+      // Verify we're at 3 attempts
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 3/4');
       
-      // Make the winning guess on the 6th attempt
+      // Make the winning guess on the 4th attempt
       await typeWord(wrapper, targetWord);
       await submitGuess(wrapper);
       await waitForUpdates();
@@ -113,7 +113,7 @@ describe('App.vue Integration Tests', () => {
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
       expect(message.text).toContain('Congratulations! You won!');
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 6/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 4/4');
     }, 20000);
   });
 
@@ -134,12 +134,12 @@ describe('App.vue Integration Tests', () => {
       expect(message.text).toContain(targetWord.toUpperCase());
       expect(message.classes).toContain('error');
       
-      // Verify attempts counter shows 6/6
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 6/6');
+      // Verify attempts counter shows 4/4
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 4/4');
       
-      // Verify all 6 rows are filled
+      // Verify all 4 rows are filled
       const finalBoard = getBoardState(wrapper);
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         const row = finalBoard[i];
         expect(row.every(tile => tile.letter !== '')).toBe(true);
       }
@@ -267,7 +267,7 @@ describe('App.vue Integration Tests', () => {
       await waitForUpdates();
       
       // Should have submitted the guess
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/4');
     });
 
     test('should limit input to 5 characters', async () => {
@@ -352,14 +352,14 @@ describe('App.vue Integration Tests', () => {
       await submitGuess(wrapper);
       
       // Verify attempts counter didn't change
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
       
       // Make another invalid guess
       await typeWord(wrapper, 'ABC');
       await submitGuess(wrapper);
       
       // Still no attempts consumed
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
     });
   });
 
@@ -370,7 +370,7 @@ describe('App.vue Integration Tests', () => {
       await submitGuess(wrapper);
       
       // Verify game state changed
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 1/4');
       
       // Click new game button
       const newGameBtn = wrapper.find('#new-game-btn');
@@ -378,7 +378,7 @@ describe('App.vue Integration Tests', () => {
       await waitForUpdates();
       
       // Verify game was reset
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
       
       // Verify board is cleared
       const board = getBoardState(wrapper);
@@ -427,7 +427,7 @@ describe('App.vue Integration Tests', () => {
       
       // Note: There's a small chance they could be the same, but very unlikely with 26 words
       // We'll just verify that a new game was started (attempts reset)
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
     });
   });
 
@@ -436,7 +436,7 @@ describe('App.vue Integration Tests', () => {
       const testWords = ['APPLE', 'BREAD', 'CRANE'];
       
       // Initial state
-      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/6');
+      expect(wrapper.find('#attempts-remaining').text()).toBe('Attempts: 0/4');
       
       // Make guesses and verify counter updates
       for (let i = 0; i < testWords.length; i++) {
@@ -447,7 +447,7 @@ describe('App.vue Integration Tests', () => {
         // Wait for async operations to complete
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i + 1}/6`);
+        expect(wrapper.find('#attempts-remaining').text()).toBe(`Attempts: ${i + 1}/4`);
       }
     }, 15000);
 

@@ -49,3 +49,5 @@ terraform/terraform.tfvars
 
 # Database
 database/data/
+# WordsAPI usage tracking
+.wordsapi-usage.json

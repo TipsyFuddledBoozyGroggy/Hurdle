@@ -37,7 +37,8 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: 'public/words.json', to: 'words.json' }
+        { from: 'public/words.json', to: 'words.json' },
+        { from: 'public/words_uncommon.json', to: 'words_uncommon.json' }
       ]
     })
   ],
@@ -45,6 +46,10 @@ module.exports = {
     extensions: ['.js', '.vue', '.json'],
     alias: {
       'vue': 'vue/dist/vue.esm-bundler.js'
+    },
+    fallback: {
+      "fs": false,
+      "path": false
     }
   },
   devServer: {
