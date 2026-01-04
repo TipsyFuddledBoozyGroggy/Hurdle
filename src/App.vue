@@ -286,28 +286,24 @@ export default {
       
       // Add flip animation to each tile with a delay
       for (let i = 0; i < 5; i++) {
-        await new Promise(resolve => {
-          setTimeout(() => {
-            const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
-            if (tile) {
-              tile.classList.add('flipping');
-              // After flip animation completes, add the final status
-              setTimeout(() => {
-                tile.classList.remove('flipping');
-                tile.classList.add(feedback[i].status);
-              }, 660); // Full flip animation duration (0.66s)
-            }
-            resolve();
-          }, i * 100); // Stagger the animations
-        });
+        setTimeout(() => {
+          const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
+          if (tile) {
+            tile.classList.add('flipping');
+            // After flip animation completes, add the final status immediately
+            setTimeout(() => {
+              tile.classList.remove('flipping');
+              tile.classList.add(feedback[i].status);
+            }, 660); // Full flip animation duration (0.66s)
+          }
+        }, i * 100); // Stagger the animations
       }
       
       // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)
       await new Promise(resolve => setTimeout(resolve, 1100));
       
-      // Clear animating state and force re-render to show final colors
+      // Clear animating state - no need to force re-render since colors are already applied
       animatingRowIndex.value = -1;
-      gameStateVersion.value++;
     };
     
     const showGameOver = async (won) => {
