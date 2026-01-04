@@ -50,14 +50,13 @@ class Dictionary {
       // WordsAPI returns 200 for valid words, 404 for invalid words
       // 403 means API key issue - fall back to local dictionary
       if (response.status === 403) {
-        console.warn('WordsAPI access forbidden (API key issue), falling back to local dictionary');
+        // Silently fall back to local dictionary for demo key limitations
         return this.wordSet.has(word.toLowerCase());
       }
       
       return response.ok;
     } catch (error) {
-      // If API fails, fall back to local dictionary
-      console.warn('WordsAPI validation failed, falling back to local dictionary:', error);
+      // If API fails, silently fall back to local dictionary
       return this.wordSet.has(word.toLowerCase());
     }
   }
@@ -76,7 +75,7 @@ class Dictionary {
           return uncommonWord;
         }
       } catch (error) {
-        console.warn('WordsAPI failed, falling back to local dictionary:', error.message);
+        // Silently fall back to local dictionary
         this.apiRetryCount++;
       }
     }
@@ -107,7 +106,7 @@ class Dictionary {
 
       // Handle 403 Forbidden (API key issues) gracefully
       if (response.status === 403) {
-        console.warn('WordsAPI access forbidden (demo API key limitations), falling back to local dictionary');
+        // Silently return null for demo key limitations
         return null;
       }
 

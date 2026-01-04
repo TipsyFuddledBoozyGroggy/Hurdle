@@ -348,7 +348,7 @@ export default {
           definition.value = {
             word: word,
             partOfSpeech: 'uncommon word',
-            text: 'WordsAPI access limited with demo key. This is a rare or technical English word.'
+            text: 'This is a rare or technical English word. Definition not available with demo API key.'
           };
           return;
         }
