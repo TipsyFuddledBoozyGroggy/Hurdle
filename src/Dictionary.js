@@ -42,7 +42,7 @@ class Dictionary {
       const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
         method: 'GET',
         headers: {
-          'X-RapidAPI-Key': 'demo', // Using demo key - users can replace with their own
+          'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
           'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
         }
       });
@@ -98,7 +98,7 @@ class Dictionary {
         {
           method: 'GET',
           headers: {
-            'X-RapidAPI-Key': 'demo', // Using demo key - users can replace with their own
+            'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
             'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
           }
         }
