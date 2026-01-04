@@ -244,7 +244,10 @@ export default {
       
       console.log('Game state before submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
-      const result = props.gameController.submitGuess(input);
+      // Show loading message while validating word
+      showMessage('Validating word...', 'info');
+      
+      const result = await props.gameController.submitGuess(input);
       console.log('Submission result:', result);
       
       if (!result.success) {

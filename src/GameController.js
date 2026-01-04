@@ -50,9 +50,9 @@ class GameController {
    * Submit a guess
    * Validates the guess and updates game state if valid
    * @param {string} word - The word to guess
-   * @returns {GuessResult} Result of the guess attempt
+   * @returns {Promise<GuessResult>} Result of the guess attempt
    */
-  submitGuess(word) {
+  async submitGuess(word) {
     // Check if game has been started
     if (!this.gameState) {
       return {
@@ -92,8 +92,9 @@ class GameController {
       };
     }
 
-    // Validate word exists in dictionary (Requirement 2.2)
-    if (!this.dictionary.isValidWord(normalizedWord)) {
+    // Validate word exists in dictionary (Requirement 2.2) - now async
+    const isValid = await this.dictionary.isValidWord(normalizedWord);
+    if (!isValid) {
       return {
         success: false,
         error: 'Not a valid word',

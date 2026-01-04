@@ -23,15 +23,24 @@ class Dictionary {
   }
 
   /**
-   * Check if a word exists in the dictionary
+   * Check if a word exists in the dictionary using API validation
    * @param {string} word - The word to validate
-   * @returns {boolean} True if the word exists in the dictionary
+   * @returns {Promise<boolean>} True if the word is a valid English word
    */
-  isValidWord(word) {
-    if (typeof word !== 'string') {
+  async isValidWord(word) {
+    if (typeof word !== 'string' || word.length !== 5) {
       return false;
     }
-    return this.wordSet.has(word.toLowerCase());
+
+    try {
+      // Use the same dictionary API for word validation
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+      return response.ok;
+    } catch (error) {
+      // If API fails, fall back to local dictionary
+      console.warn('API validation failed, falling back to local dictionary:', error);
+      return this.wordSet.has(word.toLowerCase());
+    }
   }
 
   /**
