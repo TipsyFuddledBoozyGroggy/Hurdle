@@ -26,6 +26,7 @@
           :key="key"
           :class="['key', { wide: key === 'ENTER' || key === 'BACKSPACE' }, keyboardState[key]]"
           :data-key="key"
+          :disabled="!isInitialized"
           @click="handleKeyPress(key)"
         >
           {{ key === 'BACKSPACE' ? '⌫' : key }}
@@ -65,6 +66,7 @@ export default {
     const messageType = ref('');
     const definition = ref(null);
     const keyboardState = ref({});
+    const isInitialized = ref(false);
 
     
     const keyboardLayout = [
@@ -73,17 +75,17 @@ export default {
       ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'BACKSPACE']
     ];
     
-    const gameState = computed(() => props.gameController.getGameState());
+    const gameState = computed(() => props.gameController?.getGameState() || null);
     const isGameOver = computed(() => gameState.value?.isGameOver() || false);
     const maxAttempts = computed(() => gameState.value?.maxAttempts || 6);
-    const attemptsUsed = computed(() => gameState.value?.getGuesses().length || 0);
+    const attemptsUsed = computed(() => gameState.value?.getGuesses()?.length || 0);
     
     const boardRows = computed(() => {
       console.log('Computing boardRows... currentGuess:', currentGuess.value, 'gameState exists:', !!gameState.value);
       
       if (!gameState.value) {
-        console.log('No gameState, creating grid with current guess in first row');
-        // Even without gameState, show current guess in first row
+        console.log('No gameState, creating empty grid');
+        // Create empty grid with current guess in first row if typing
         const rows = [];
         for (let rowIndex = 0; rowIndex < 6; rowIndex++) {
           const row = [];
@@ -101,7 +103,7 @@ export default {
         return rows;
       }
       
-      const guesses = gameState.value.getGuesses();
+      const guesses = gameState.value?.getGuesses() || [];
       const rows = [];
       console.log('Current guesses:', guesses.length);
       
@@ -176,7 +178,7 @@ export default {
     
     const handleKeyPress = (key) => {
       console.log('Key pressed:', key);
-      if (isGameOver.value) return;
+      if (!isInitialized.value || isGameOver.value || !props.gameController) return;
       
       if (key === 'ENTER') {
         console.log('Enter pressed, submitting guess:', currentGuess.value);
@@ -194,7 +196,7 @@ export default {
     };
     
     const handleGlobalKeydown = (event) => {
-      if (isGameOver.value) return;
+      if (isGameOver.value || !props.gameController) return;
       
       const key = event.key.toUpperCase();
       console.log('Global key pressed:', key);
@@ -216,7 +218,7 @@ export default {
     };
     
     const handleGuessSubmit = async () => {
-      if (isGameOver.value) return;
+      if (isGameOver.value || !props.gameController) return;
       
       const input = currentGuess.value.trim();
       console.log('Submitting guess:', input);
@@ -233,7 +235,7 @@ export default {
         return;
       }
       
-      console.log('Game state before submission:', gameState.value ? gameState.value.getGuesses().length : 'no game state');
+      console.log('Game state before submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
       const result = props.gameController.submitGuess(input);
       console.log('Submission result:', result);
@@ -243,7 +245,7 @@ export default {
         return;
       }
       
-      console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses().length : 'no game state');
+      console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
       // Clear current guess immediately to prevent display issues
       const submittedGuess = currentGuess.value;
@@ -267,7 +269,7 @@ export default {
     
     const animateTileFlip = async (guess) => {
       const feedback = guess.getFeedback();
-      const currentRowIndex = gameState.value.getGuesses().length - 1;
+      const currentRowIndex = gameState.value?.getGuesses()?.length - 1 || 0;
       
       // Add flip animation to each tile with a delay
       for (let i = 0; i < 5; i++) {
@@ -292,7 +294,7 @@ export default {
     };
     
     const showGameOver = async (won) => {
-      const targetWord = gameState.value.getTargetWord().toUpperCase();
+      const targetWord = gameState.value?.getTargetWord()?.toUpperCase() || 'UNKNOWN';
       
       if (won) {
         showMessage(`Congratulations! You won! The word was ${targetWord}`, 'success');
@@ -350,16 +352,26 @@ export default {
     
     const handleNewGame = () => {
       console.log('Starting new game...');
+      if (!props.gameController) {
+        console.error('Game controller not available');
+        return;
+      }
       props.gameController.startNewGame();
       currentGuess.value = '';
       showMessage('', '');
       definition.value = null;
       resetKeyboardState();
+      isInitialized.value = true;
       console.log('New game started, gameState:', gameState.value);
     };
     
     onMounted(() => {
-      handleNewGame();
+      console.log('Component mounted, initializing game...');
+      if (props.gameController) {
+        handleNewGame();
+      } else {
+        console.error('Game controller not available on mount');
+      }
       // Add global keyboard event listener
       document.addEventListener('keydown', handleGlobalKeydown);
     });
@@ -380,6 +392,7 @@ export default {
       isGameOver,
       maxAttempts,
       attemptsUsed,
+      isInitialized,
       handleKeyPress,
       handleGlobalKeydown,
       handleGuessSubmit,
