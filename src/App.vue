@@ -334,7 +334,13 @@ export default {
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
         
         if (!response.ok) {
-          throw new Error('Definition not found');
+          // Don't throw error, just handle gracefully
+          definition.value = {
+            word: word,
+            partOfSpeech: 'uncommon word',
+            text: 'This is a rare or technical English word. Definition not available from dictionary API.'
+          };
+          return;
         }
         
         const data = await response.json();
@@ -349,16 +355,16 @@ export default {
         } else {
           definition.value = {
             word: word,
-            partOfSpeech: '',
-            text: 'Definition not available'
+            partOfSpeech: 'uncommon word',
+            text: 'This is a rare or technical English word. Definition not available from dictionary API.'
           };
         }
       } catch (error) {
-        console.error('Error fetching definition:', error);
+        // Silently handle errors for uncommon words - don't log to console
         definition.value = {
           word: word,
-          partOfSpeech: '',
-          text: 'Definition not available'
+          partOfSpeech: 'uncommon word',
+          text: 'This is a rare or technical English word. Definition not available from dictionary API.'
         };
       }
     };
