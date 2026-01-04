@@ -245,15 +245,16 @@ export default {
       
       console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses().length : 'no game state');
       
-      // Animate tile flip before clearing current guess
+      // Clear current guess immediately to prevent display issues
+      const submittedGuess = currentGuess.value;
+      currentGuess.value = '';
+      
+      // Animate tile flip after clearing current guess
       if (result.guess) {
         await animateTileFlip(result.guess);
         updateKeyboardState(result.guess);
         console.log('Updated keyboard state for guess');
       }
-      
-      // Clear current guess after animation
-      currentGuess.value = '';
       
       if (result.gameStatus === 'won') {
         showGameOver(true);

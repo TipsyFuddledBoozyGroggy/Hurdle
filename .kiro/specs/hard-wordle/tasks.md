@@ -265,6 +265,25 @@
   - All documentation complete
   - Application fully implemented and ready for deployment
 
+## Bug Fixes (Current Priority)
+
+- [x] 18. Fix letter tile display bug
+  - [x] 18.1 Debug and fix letter tile rendering issue
+    - Investigate why letter tiles are not showing guessed letters when Enter is pressed
+    - Check Vue reactivity and computed property updates in boardRows
+    - Verify game state updates are triggering UI re-renders correctly
+    - Fix any issues with the letter tile display logic in App.vue
+    - Test that letters appear immediately when typed and remain visible after submission
+    - _Requirements: 6.4, 4.1, 4.3_
+
+  - [x] 18.2 Test the fix across different scenarios
+    - Test letter display during typing (before submission)
+    - Test letter display after valid guess submission
+    - Test letter display after invalid guess submission
+    - Test letter display with feedback colors (green/yellow/gray)
+    - Verify letters persist correctly in game history
+    - _Requirements: 6.4, 3.1, 3.2, 4.1_
+
 ## Remaining Tasks (To Be Completed)
 
 - [x] 16. Write Vue component integration tests
