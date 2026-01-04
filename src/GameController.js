@@ -38,10 +38,10 @@ class GameController {
   /**
    * Start a new game
    * Selects a random target word and initializes game state
-   * @returns {GameState} The new game state
+   * @returns {Promise<GameState>} The new game state
    */
-  startNewGame() {
-    const targetWord = this.dictionary.getRandomWord();
+  async startNewGame() {
+    const targetWord = await this.dictionary.getRandomWord();
     this.gameState = new GameState(targetWord, 6);
     return this.gameState;
   }

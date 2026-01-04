@@ -284,6 +284,161 @@
     - Verify letters persist correctly in game history
     - _Requirements: 6.4, 3.1, 3.2, 4.1_
 
+- [x] 19. Fix JavaScript console error
+  - [x] 19.1 Debug and fix null reference error
+    - Investigate "Cannot read properties of null (reading 'getGuesses')" error
+    - Add proper null checking for gameController prop in Vue component
+    - Add safety checks in computed properties and event handlers
+    - Ensure graceful handling when gameState is null during initialization
+    - _Requirements: 6.1, 6.2, 6.3_
+
+  - [x] 19.2 Add comprehensive null safety throughout component
+    - Add optional chaining to all gameState.value method calls (getGuesses, getTargetWord)
+    - Add initialization state tracking to prevent premature interactions
+    - Disable keyboard buttons until game is properly initialized
+    - Add comprehensive error handling for game controller availability
+    - _Requirements: 6.1, 6.2, 6.3_
+
+- [x] 20. Fix game board display and guess persistence
+  - [x] 20.1 Debug Vue reactivity issue with game state
+    - Investigate why completed guesses weren't persisting on the board
+    - Investigate why new guesses stayed on first line instead of moving to next row
+    - Identify that Vue computed properties weren't detecting GameState object changes
+    - Root cause: GameController.getGameState() returns same object reference, but Vue doesn't detect internal state changes
+    - _Requirements: 6.4, 4.1, 4.3_
+
+  - [x] 20.2 Implement reactivity trigger solution
+    - Add gameStateVersion reactive reference to force computed property updates
+    - Modify gameState computed property to depend on gameStateVersion
+    - Increment gameStateVersion after submitGuess and startNewGame calls
+    - Ensure Vue detects all changes to game state and re-renders board correctly
+    - _Requirements: 6.4, 4.1, 4.3_
+
+- [x] 21. Improve tile flip animation timing and sequence
+  - [x] 21.1 Slow down tile flip animation by 10%
+    - Change CSS animation duration from 0.6s to 0.66s (10% slower)
+    - Update flip keyframe animation timing in styles.css
+    - Provide more polished visual experience with slightly slower reveal
+    - _Requirements: 6.4, 3.1, 3.2_
+
+  - [x] 21.2 Fix CSS class application timing
+    - Wait for full flip animation to complete before adding status classes
+    - Change JavaScript timing from 300ms (half duration) to 660ms (full duration)
+    - Ensure 'correct'/'present'/'absent' classes appear after flip finishes completely
+    - Update total animation wait time to account for staggered timing
+    - _Requirements: 6.4, 3.1, 3.2_
+
+  - [x] 21.3 Fix premature color application during Vue re-renders
+    - Add animatingRowIndex tracker to prevent status classes during animation
+    - Modify boardRows computed property to show 'filled' status instead of colors while animating
+    - Set animatingRowIndex before animation starts, clear after animation completes
+    - Force Vue re-render after animation to show final colors properly
+    - Reset animation state on new game to prevent state leakage
+    - _Requirements: 6.4, 3.1, 3.2_
+
+  - [x] 21.5 Remove wait for immediate color reveal
+    - Remove await Promise wrapper from tile animation loop
+    - Each tile now shows its color immediately when its own flip completes
+    - No longer wait for all 5 tiles to finish before showing any colors
+    - Remove unnecessary gameStateVersion increment since colors apply via DOM manipulation
+    - Improve animation responsiveness and visual feedback timing
+    - _Requirements: 6.4, 3.1, 3.2_
+
+- [x] 22. Replace word list with uncommon 5-letter English words
+  - [x] 22.1 Create comprehensive list of rare and technical words
+    - Generate 1000+ uncommon 5-letter English words from specialized fields
+    - Focus on archaic, technical, scientific, medical, and botanical terms
+    - Include words from chemistry, biology, linguistics, and obsolete English
+    - Remove common everyday words to significantly increase game difficulty
+    - _Requirements: 7.1, 7.3, 7.4_
+
+  - [x] 22.2 Implement new word list in JSON format
+    - Replace existing words.json with curated uncommon vocabulary
+    - Maintain proper JSON structure for dictionary loading
+    - Ensure all words are valid 5-letter English dictionary words
+    - Focus on words that are legitimate but rarely used in everyday language
+    - _Requirements: 7.1, 7.2, 7.3_
+
+- [x] 23. Fix JSON syntax error in word list
+  - [x] 23.1 Identify and fix JSON parsing error
+    - Locate missing comma after 'bubas' entry at line 1498 column 5
+    - Fix JSON syntax error causing "Expected ',' or ']' after array element" 
+    - Validate JSON structure using Node.js JSON.parse validation
+    - Ensure proper dictionary loading without parsing errors
+    - _Requirements: 7.1, 7.2_
+
+- [x] 24. Improve error handling for uncommon word definitions
+  - [x] 24.1 Fix console errors for missing word definitions
+    - Remove console.error logging for missing word definitions
+    - Handle 404 responses gracefully without throwing errors
+    - Eliminate "Error fetching definition: Definition not found" console messages
+    - Prevent error logging that doesn't affect game functionality
+    - _Requirements: 5.3, 6.4_
+
+  - [x] 24.2 Provide informative messages for rare words
+    - Set partOfSpeech to 'uncommon word' for words not found in dictionary API
+    - Provide explanatory message: "This is a rare or technical English word"
+    - Explain that definition unavailability is expected for rare vocabulary
+    - Maintain user-friendly experience even when definitions aren't available
+    - _Requirements: 5.3, 6.4_
+
+- [x] 25. Implement API-based word validation for guess checking
+  - [x] 25.1 Modify Dictionary class for API validation
+    - Update Dictionary.isValidWord() to use dictionary API for word validation
+    - Make isValidWord() async to handle API calls
+    - Add fallback to local dictionary if API fails
+    - Maintain local word list for target word selection (uncommon words)
+    - _Requirements: 2.2, 7.1, 7.2_
+
+  - [x] 25.2 Update GameController for async validation
+    - Make submitGuess() method async to handle API-based validation
+    - Update JSDoc to reflect Promise return type
+    - Await dictionary validation before proceeding with guess processing
+    - Maintain all existing validation logic and error handling
+    - _Requirements: 2.1, 2.2, 2.3, 2.5_
+
+  - [x] 25.3 Update Vue component for async word validation
+    - Make handleGuessSubmit() await async submitGuess() call
+    - Add loading message during word validation process
+    - Show "Validating word..." message while API call is in progress
+    - Maintain responsive UI during validation
+    - _Requirements: 6.1, 6.2, 6.3_
+
+  - [x] 25.4 Test and deploy API-based validation
+    - Rebuild Docker container with API-based word validation
+    - Test that common words like "trend" are now accepted as valid guesses
+    - Test that uncommon target words are still selected from local list
+    - Verify fallback to local dictionary works if API fails
+    - Commit and push API validation improvements to git repository
+    - _Requirements: 8.1, 8.2, 2.2, 7.2_
+
+- [x] 26. Implement WordsAPI integration for dynamic uncommon word selection
+  - [x] 26.1 Enhance Dictionary class with WordsAPI integration
+    - Add getRandomUncommonWordFromAPI() method using WordsAPI
+    - Configure frequency filtering (frequencyMin=1, frequencyMax=3) for rare words
+    - Implement retry logic and fallback to local dictionary
+    - Make getRandomWord() async to support API calls
+    - _Requirements: 7.1, 7.2, 7.3_
+
+  - [x] 26.2 Update GameController for async word selection
+    - Make startNewGame() async to handle API-based word selection
+    - Update JSDoc to reflect Promise return type
+    - Maintain error handling and fallback behavior
+    - _Requirements: 1.1, 1.2, 7.1, 7.2_
+
+  - [x] 26.3 Update Vue component for async game initialization
+    - Make handleNewGame() and onMounted() async
+    - Add loading message during new game initialization
+    - Handle API failures gracefully with user feedback
+    - _Requirements: 6.1, 6.2, 6.3_
+
+  - [x] 26.4 Update tests for async behavior
+    - Convert Dictionary tests to async/await pattern
+    - Update GameController tests for async methods
+    - Maintain test coverage and property-based testing
+    - Verify API fallback works correctly in test environment
+    - _Requirements: All testing requirements_
+
 ## Remaining Tasks (To Be Completed)
 
 - [x] 16. Write Vue component integration tests

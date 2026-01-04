@@ -28,24 +28,24 @@ describe('GameController', () => {
   });
 
   describe('startNewGame', () => {
-    test('should start a new game with a valid target word', () => {
-      const gameState = gameController.startNewGame();
+    test('should start a new game with a valid target word', async () => {
+      const gameState = await gameController.startNewGame();
       
       expect(gameState).toBeDefined();
       expect(gameState.getTargetWord()).toHaveLength(5);
-      expect(dictionary.isValidWord(gameState.getTargetWord())).toBe(true);
+      expect(await dictionary.isValidWord(gameState.getTargetWord())).toBe(true);
       expect(gameState.getGuesses()).toHaveLength(0);
       expect(gameState.getRemainingAttempts()).toBe(6);
       expect(gameState.getGameStatus()).toBe('in-progress');
     });
 
-    test('should reset game state when starting a new game', () => {
+    test('should reset game state when starting a new game', async () => {
       // Start first game and make a guess
-      gameController.startNewGame();
-      gameController.submitGuess('apple');
+      await gameController.startNewGame();
+      await gameController.submitGuess('apple');
       
       // Start new game
-      const newGameState = gameController.startNewGame();
+      const newGameState = await gameController.startNewGame();
       
       expect(newGameState.getGuesses()).toHaveLength(0);
       expect(newGameState.getRemainingAttempts()).toBe(6);
@@ -54,20 +54,20 @@ describe('GameController', () => {
   });
 
   describe('submitGuess', () => {
-    beforeEach(() => {
-      gameController.startNewGame();
+    beforeEach(async () => {
+      await gameController.startNewGame();
     });
 
-    test('should reject guess if no game has been started', () => {
+    test('should reject guess if no game has been started', async () => {
       const controller = new GameController(dictionary);
-      const result = controller.submitGuess('apple');
+      const result = await controller.submitGuess('apple');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('No game in progress. Start a new game first.');
     });
 
-    test('should accept valid 5-letter word from dictionary', () => {
-      const result = gameController.submitGuess('apple');
+    test('should accept valid 5-letter word from dictionary', async () => {
+      const result = await gameController.submitGuess('apple');
       
       expect(result.success).toBe(true);
       expect(result.guess).toBeDefined();
@@ -75,32 +75,32 @@ describe('GameController', () => {
       expect(result.gameStatus).toBeDefined();
     });
 
-    test('should reject word that is not 5 letters', () => {
-      const result = gameController.submitGuess('cat');
+    test('should reject word that is not 5 letters', async () => {
+      const result = await gameController.submitGuess('cat');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Word must be exactly 5 letters');
       expect(gameController.getGameState().getGuesses()).toHaveLength(0);
     });
 
-    test('should reject word not in dictionary', () => {
-      const result = gameController.submitGuess('zzzzz');
+    test('should reject word not in dictionary', async () => {
+      const result = await gameController.submitGuess('zzzzz');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Not a valid word');
       expect(gameController.getGameState().getGuesses()).toHaveLength(0);
     });
 
-    test('should reject empty string', () => {
-      const result = gameController.submitGuess('');
+    test('should reject empty string', async () => {
+      const result = await gameController.submitGuess('');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Word must be exactly 5 letters');
     });
 
-    test('should normalize case when submitting guess', () => {
+    test('should normalize case when submitting guess', async () => {
       // Start a new game to ensure clean state
-      gameController.startNewGame();
+      await gameController.startNewGame();
       
       // Get the target word to avoid accidentally winning
       const targetWord = gameController.getGameState().getTargetWord();
@@ -110,57 +110,57 @@ describe('GameController', () => {
       const safeWords = testWords.filter(word => word.toLowerCase() !== targetWord);
       
       // Test case normalization with the first safe word
-      const result1 = gameController.submitGuess(safeWords[0]);
+      const result1 = await gameController.submitGuess(safeWords[0]);
       expect(result1.success).toBe(true);
       expect(result1.guess.getWord()).toBe(safeWords[0].toLowerCase());
       
       // Test mixed case with the second safe word
       const mixedCaseWord = safeWords[1];
-      const result2 = gameController.submitGuess(mixedCaseWord.charAt(0) + mixedCaseWord.slice(1).toLowerCase());
+      const result2 = await gameController.submitGuess(mixedCaseWord.charAt(0) + mixedCaseWord.slice(1).toLowerCase());
       expect(result2.success).toBe(true);
       expect(result2.guess.getWord()).toBe(mixedCaseWord.toLowerCase());
     });
 
-    test('should reject guess when game is already over', () => {
+    test('should reject guess when game is already over', async () => {
       // Set up a game where we know the target
       const testDict = new Dictionary(['apple']);
       const testController = new GameController(testDict);
-      testController.startNewGame();
+      await testController.startNewGame();
       
       // Win the game
-      testController.submitGuess('apple');
+      await testController.submitGuess('apple');
       
       // Try to submit another guess
-      const result = testController.submitGuess('apple');
+      const result = await testController.submitGuess('apple');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Game is over. Start a new game!');
     });
 
-    test('should update game status to won when correct word is guessed', () => {
+    test('should update game status to won when correct word is guessed', async () => {
       // Set up a game where we know the target
       const testDict = new Dictionary(['apple']);
       const testController = new GameController(testDict);
-      testController.startNewGame();
+      await testController.startNewGame();
       
-      const result = testController.submitGuess('apple');
+      const result = await testController.submitGuess('apple');
       
       expect(result.success).toBe(true);
       expect(result.gameStatus).toBe('won');
     });
 
-    test('should decrement remaining attempts on valid guess', () => {
+    test('should decrement remaining attempts on valid guess', async () => {
       const initialAttempts = gameController.getGameState().getRemainingAttempts();
       
-      gameController.submitGuess('apple');
+      await gameController.submitGuess('apple');
       
       expect(gameController.getGameState().getRemainingAttempts()).toBe(initialAttempts - 1);
     });
 
-    test('should not decrement attempts on invalid guess', () => {
+    test('should not decrement attempts on invalid guess', async () => {
       const initialAttempts = gameController.getGameState().getRemainingAttempts();
       
-      gameController.submitGuess('zzzzz');
+      await gameController.submitGuess('zzzzz');
       
       expect(gameController.getGameState().getRemainingAttempts()).toBe(initialAttempts);
     });
@@ -171,15 +171,15 @@ describe('GameController', () => {
       expect(gameController.getGameState()).toBeNull();
     });
 
-    test('should return current game state after game starts', () => {
-      const gameState = gameController.startNewGame();
+    test('should return current game state after game starts', async () => {
+      const gameState = await gameController.startNewGame();
       
       expect(gameController.getGameState()).toBe(gameState);
     });
 
-    test('should return updated game state after guesses', () => {
-      gameController.startNewGame();
-      gameController.submitGuess('apple');
+    test('should return updated game state after guesses', async () => {
+      await gameController.startNewGame();
+      await gameController.submitGuess('apple');
       
       const gameState = gameController.getGameState();
       expect(gameState.getGuesses()).toHaveLength(1);

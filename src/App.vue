@@ -372,27 +372,35 @@ export default {
       }
     };
     
-    const handleNewGame = () => {
+    const handleNewGame = async () => {
       console.log('Starting new game...');
       if (!props.gameController) {
         console.error('Game controller not available');
         return;
       }
-      props.gameController.startNewGame();
-      currentGuess.value = '';
-      showMessage('', '');
-      definition.value = null;
-      resetKeyboardState();
-      isInitialized.value = true;
-      animatingRowIndex.value = -1; // Reset animation state
-      gameStateVersion.value++; // Force reactivity update
-      console.log('New game started, gameState:', gameState.value);
+      
+      showMessage('Loading new game...', 'info');
+      
+      try {
+        await props.gameController.startNewGame();
+        currentGuess.value = '';
+        showMessage('', '');
+        definition.value = null;
+        resetKeyboardState();
+        isInitialized.value = true;
+        animatingRowIndex.value = -1; // Reset animation state
+        gameStateVersion.value++; // Force reactivity update
+        console.log('New game started, gameState:', gameState.value);
+      } catch (error) {
+        console.error('Failed to start new game:', error);
+        showMessage('Failed to load new game. Please try again.', 'error');
+      }
     };
     
-    onMounted(() => {
+    onMounted(async () => {
       console.log('Component mounted, initializing game...');
       if (props.gameController) {
-        handleNewGame();
+        await handleNewGame();
       } else {
         console.error('Game controller not available on mount');
       }

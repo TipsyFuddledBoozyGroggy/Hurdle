@@ -75,22 +75,22 @@ describe('Dictionary', () => {
     });
 
     describe('getRandomWord', () => {
-      test('should return a word from the dictionary', () => {
+      test('should return a word from the dictionary', async () => {
         const words = ['apple', 'bread', 'crane'];
         const dictionary = new Dictionary(words);
         
-        const randomWord = dictionary.getRandomWord();
+        const randomWord = await dictionary.getRandomWord();
         
         expect(words).toContain(randomWord);
       });
 
-      test('should return different words over multiple calls', () => {
+      test('should return different words over multiple calls', async () => {
         const words = ['apple', 'bread', 'crane', 'delta', 'eagle', 'frost', 'grape', 'house'];
         const dictionary = new Dictionary(words);
         
         const results = new Set();
         for (let i = 0; i < 50; i++) {
-          results.add(dictionary.getRandomWord());
+          results.add(await dictionary.getRandomWord());
         }
         
         // With 50 calls and 8 words, we should get at least 2 different words
@@ -127,20 +127,20 @@ describe('Dictionary', () => {
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
             { minLength: 10, maxLength: 100 }
           ),
-          (words) => {
+          async (words) => {
             // Skip if no words (though minLength prevents this)
             fc.pre(words.length > 0);
             
             const dictionary = new Dictionary(words);
             
             // Get a random word from the dictionary
-            const randomWord = dictionary.getRandomWord();
+            const randomWord = await dictionary.getRandomWord();
             
             // The random word must be exactly 5 letters
             expect(randomWord).toHaveLength(5);
             
             // The random word must be valid according to the dictionary
-            expect(dictionary.isValidWord(randomWord)).toBe(true);
+            expect(await dictionary.isValidWord(randomWord)).toBe(true);
           }
         ),
         { numRuns: 100 }
