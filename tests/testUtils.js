@@ -190,18 +190,25 @@ async function playGameToLoss(wrapper, gameController) {
   const targetWord = gameController.getGameState().getTargetWord();
   const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE', 'EAGLE', 'FLAME'];
   
-  // Make 4 wrong guesses (avoid the target word)
-  for (let i = 0; i < 4; i++) {
+  // Make 4 wrong guesses (avoid the target word and duplicates)
+  const usedWords = new Set();
+  let guessCount = 0;
+  
+  for (let i = 0; i < testWords.length && guessCount < 4; i++) {
     let guessWord = testWords[i];
-    // Make sure we don't accidentally guess the target word
-    if (guessWord === targetWord.toUpperCase()) {
-      guessWord = testWords[(i + 1) % testWords.length];
+    
+    // Make sure we don't accidentally guess the target word or repeat a word
+    if (guessWord === targetWord.toUpperCase() || usedWords.has(guessWord)) {
+      continue;
     }
     
+    usedWords.add(guessWord);
     await typeWord(wrapper, guessWord);
     await submitGuess(wrapper);
     await waitForUpdates();
+    guessCount++;
   }
+  
   // Additional wait for final async operations
   await new Promise(resolve => setTimeout(resolve, 500));
 }

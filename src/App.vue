@@ -2,7 +2,6 @@
   <div id="game-container">
     <header>
       <h1>Hurdle</h1>
-      <div id="attempts-remaining">Attempts: {{ attemptsUsed }}/{{ maxAttempts }}</div>
     </header>
     
     <div id="game-board">
@@ -83,8 +82,6 @@ export default {
       return props.gameController?.getGameState() || null;
     });
     const isGameOver = computed(() => gameState.value?.isGameOver() || false);
-    const maxAttempts = computed(() => gameState.value?.maxAttempts || 4);
-    const attemptsUsed = computed(() => gameState.value?.getGuesses()?.length || 0);
     
     const boardRows = computed(() => {
       console.log('Computing boardRows... currentGuess:', currentGuess.value, 'gameState exists:', !!gameState.value);
@@ -127,7 +124,7 @@ export default {
       });
       
       // Add current guess row (if game not over and we haven't used all attempts)
-      if (!isGameOver.value && rows.length < maxAttempts.value) {
+      if (!isGameOver.value && rows.length < 4) {
         const currentRow = [];
         for (let i = 0; i < 5; i++) {
           const hasLetter = i < currentGuess.value.length;
@@ -142,7 +139,7 @@ export default {
       }
       
       // Fill remaining empty rows
-      while (rows.length < maxAttempts.value) {
+      while (rows.length < 4) {
         const emptyRow = Array(5).fill(null).map(() => ({
           letter: '',
           status: 'empty',
@@ -440,8 +437,6 @@ export default {
       keyboardLayout,
       boardRows,
       isGameOver,
-      maxAttempts,
-      attemptsUsed,
       isInitialized,
       handleKeyPress,
       handleGlobalKeydown,

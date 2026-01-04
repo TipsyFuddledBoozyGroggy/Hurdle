@@ -102,6 +102,17 @@ class GameController {
       };
     }
 
+    // Check for duplicate guess
+    const previousGuesses = this.gameState.getGuesses();
+    const isDuplicate = previousGuesses.some(guess => guess.getWord() === normalizedWord);
+    if (isDuplicate) {
+      return {
+        success: false,
+        error: 'You have already guessed this word',
+        gameStatus: this.gameState.getGameStatus()
+      };
+    }
+
     // Generate feedback for the guess
     const feedback = FeedbackGenerator.generateFeedback(
       normalizedWord,

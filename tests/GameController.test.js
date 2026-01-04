@@ -164,6 +164,69 @@ describe('GameController', () => {
       
       expect(gameController.getGameState().getRemainingAttempts()).toBe(initialAttempts);
     });
+
+    test('should reject duplicate guess', async () => {
+      // Make first guess
+      const result1 = await gameController.submitGuess('apple');
+      expect(result1.success).toBe(true);
+      
+      // Try to make the same guess again
+      const result2 = await gameController.submitGuess('apple');
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe('You have already guessed this word');
+      
+      // Should still only have one guess in the game state
+      expect(gameController.getGameState().getGuesses()).toHaveLength(1);
+    });
+
+    test('should reject duplicate guess regardless of case', async () => {
+      // Set up a game where we know the target word is not 'apple'
+      const testDict = new Dictionary(['apple', 'bread', 'crane', 'delta', 'eagle']);
+      const testController = new GameController(testDict);
+      await testController.startNewGame();
+      
+      // Ensure the target word is not 'apple' by setting it manually
+      // This is a test-specific approach to avoid random failures
+      const gameState = testController.getGameState();
+      if (gameState.getTargetWord() === 'apple') {
+        // If randomly selected 'apple', restart until we get a different word
+        let attempts = 0;
+        while (gameState.getTargetWord() === 'apple' && attempts < 10) {
+          await testController.startNewGame();
+          attempts++;
+        }
+      }
+      
+      // Make first guess in lowercase
+      const result1 = await testController.submitGuess('apple');
+      expect(result1.success).toBe(true);
+      
+      // Try to make the same guess in uppercase
+      const result2 = await testController.submitGuess('APPLE');
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe('You have already guessed this word');
+      
+      // Try mixed case
+      const result3 = await testController.submitGuess('ApPlE');
+      expect(result3.success).toBe(false);
+      expect(result3.error).toBe('You have already guessed this word');
+      
+      // Should still only have one guess in the game state
+      expect(testController.getGameState().getGuesses()).toHaveLength(1);
+    });
+
+    test('should allow different words after a guess', async () => {
+      // Make first guess
+      const result1 = await gameController.submitGuess('apple');
+      expect(result1.success).toBe(true);
+      
+      // Make different second guess
+      const result2 = await gameController.submitGuess('bread');
+      expect(result2.success).toBe(true);
+      
+      // Should have two guesses in the game state
+      expect(gameController.getGameState().getGuesses()).toHaveLength(2);
+    });
   });
 
   describe('getGameState', () => {
@@ -488,16 +551,17 @@ describe('GameController', () => {
             const targetWord = gameState.getTargetWord();
             
             // Get 4 words that are not the target
-            const wrongWords = words.filter(w => w !== targetWord).slice(0, 4);
+            const wrongWords = words.filter(w => w !== targetWord);
             
-            // Need at least 4 wrong words
-            fc.pre(wrongWords.length >= 4);
+            // Need at least 4 unique wrong words
+            const uniqueWrongWords = [...new Set(wrongWords)].slice(0, 4);
+            fc.pre(uniqueWrongWords.length >= 4);
             
-            // Submit 4 wrong guesses
+            // Submit 4 wrong guesses (ensuring no duplicates)
             for (let i = 0; i < 4; i++) {
-              const result = await controller.submitGuess(wrongWords[i]);
+              const result = await controller.submitGuess(uniqueWrongWords[i]);
               
-              // Each guess should succeed (valid word)
+              // Each guess should succeed (valid word and not duplicate)
               expect(result.success).toBe(true);
               
               // Check status after each guess
@@ -560,8 +624,9 @@ describe('GameController', () => {
             
             let actualGuesses = 0;
             let wonGame = false;
+            const usedWords = new Set();
             
-            // Make guesses
+            // Make guesses (avoiding duplicates)
             for (let i = 0; i < numGuesses && actualGuesses < 4; i++) {
               if (shouldWin && i === numGuesses - 1) {
                 // Win on the last guess
@@ -569,10 +634,14 @@ describe('GameController', () => {
                 wonGame = true;
                 actualGuesses++;
                 break;
-              } else if (wrongWords[i]) {
-                // Make a wrong guess
-                await controller.submitGuess(wrongWords[i]);
-                actualGuesses++;
+              } else if (wrongWords[i] && !usedWords.has(wrongWords[i])) {
+                // Make a wrong guess (avoiding duplicates)
+                const word = wrongWords[i];
+                const result = await controller.submitGuess(word);
+                if (result.success) {
+                  usedWords.add(word);
+                  actualGuesses++;
+                }
               }
             }
             
