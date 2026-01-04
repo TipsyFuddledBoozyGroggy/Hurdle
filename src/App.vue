@@ -192,9 +192,17 @@ export default {
           console.log('Backspace pressed, removing letter');
           currentGuess.value = currentGuess.value.slice(0, -1);
         }
+        // Clear error messages when user starts editing
+        if (message.value && messageType.value === 'error') {
+          showMessage('', '');
+        }
       } else if (currentGuess.value.length < 5) {
         console.log('Adding letter:', key);
         currentGuess.value += key;
+        // Clear error messages when user starts typing
+        if (message.value && messageType.value === 'error') {
+          showMessage('', '');
+        }
       }
       console.log('Current guess after key press:', currentGuess.value);
     };
@@ -213,10 +221,18 @@ export default {
         if (currentGuess.value.length > 0) {
           currentGuess.value = currentGuess.value.slice(0, -1);
         }
+        // Clear error messages when user starts editing
+        if (message.value && messageType.value === 'error') {
+          showMessage('', '');
+        }
       } else if (/^[A-Z]$/.test(key)) {
         event.preventDefault();
         if (currentGuess.value.length < 5) {
           currentGuess.value += key;
+        }
+        // Clear error messages when user starts typing
+        if (message.value && messageType.value === 'error') {
+          showMessage('', '');
         }
       }
     };
@@ -273,6 +289,8 @@ export default {
       } else if (result.gameStatus === 'lost') {
         showGameOver(false);
       } else {
+        // Clear the validating message for successful guesses
+        showMessage('', '');
         console.log('Game continues, next guess ready');
       }
     };

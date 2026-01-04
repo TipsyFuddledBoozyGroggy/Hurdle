@@ -147,10 +147,16 @@ class Dictionary {
    * @returns {Promise<string>} A random 5-letter uncommon word
    */
   async getRandomWord() {
-    // In development mode, always use local dictionary
+    // In development mode, always use local dictionary (excluding proper nouns)
     if (!this.isProduction) {
-      const randomIndex = Math.floor(Math.random() * this.wordArray.length);
-      return this.wordArray[randomIndex];
+      const nonProperNounWords = this.getNonProperNounWords();
+      if (nonProperNounWords.length === 0) {
+        // Fallback to all words if no non-proper nouns found
+        const randomIndex = Math.floor(Math.random() * this.wordArray.length);
+        return this.wordArray[randomIndex];
+      }
+      const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
+      return nonProperNounWords[randomIndex];
     }
 
     // Check API limit before making request (production only)
@@ -159,9 +165,15 @@ class Dictionary {
         console.warn(this.apiTracker.getUsageMessage());
         this.limitExceededMessageShown = true;
       }
-      // Fall back to local dictionary
-      const randomIndex = Math.floor(Math.random() * this.wordArray.length);
-      return this.wordArray[randomIndex];
+      // Fall back to local dictionary (excluding proper nouns)
+      const nonProperNounWords = this.getNonProperNounWords();
+      if (nonProperNounWords.length === 0) {
+        // Fallback to all words if no non-proper nouns found
+        const randomIndex = Math.floor(Math.random() * this.wordArray.length);
+        return this.wordArray[randomIndex];
+      }
+      const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
+      return nonProperNounWords[randomIndex];
     }
 
     // Try to get an uncommon word from WordsAPI first (production only)
@@ -178,9 +190,36 @@ class Dictionary {
       }
     }
     
-    // Fallback to local dictionary
-    const randomIndex = Math.floor(Math.random() * this.wordArray.length);
-    return this.wordArray[randomIndex];
+    // Fallback to local dictionary (excluding proper nouns)
+    const nonProperNounWords = this.getNonProperNounWords();
+    if (nonProperNounWords.length === 0) {
+      // Fallback to all words if no non-proper nouns found
+      const randomIndex = Math.floor(Math.random() * this.wordArray.length);
+      return this.wordArray[randomIndex];
+    }
+    const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
+    return nonProperNounWords[randomIndex];
+  }
+
+  /**
+   * Check if a word is likely a proper noun (starts with capital letter)
+   * @param {string} word - The word to check
+   * @returns {boolean} True if the word appears to be a proper noun
+   */
+  isProperNoun(word) {
+    if (typeof word !== 'string' || word.length === 0) {
+      return false;
+    }
+    // Check if the first letter is uppercase (indicating a proper noun)
+    return word[0] === word[0].toUpperCase() && word[0] !== word[0].toLowerCase();
+  }
+
+  /**
+   * Get words that are not proper nouns
+   * @returns {string[]} Array of words that are not proper nouns
+   */
+  getNonProperNounWords() {
+    return this.wordArray.filter(word => !this.isProperNoun(word));
   }
 
   /**
