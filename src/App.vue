@@ -393,11 +393,20 @@ export default {
         
         // WordsAPI structure: { results: [{ definition, partOfSpeech }] }
         if (data && data.results && data.results.length > 0) {
-          // Collect all definitions from the results array
-          const definitions = data.results.map(result => ({
-            partOfSpeech: result.partOfSpeech || 'word',
-            text: result.definition || 'Definition not available'
-          }));
+          // Collect definitions that have typeOf (common concepts) and filter out instanceOf (proper nouns)
+          const validDefinitions = data.results
+            .filter(result => result.typeOf && !result.instanceOf)
+            .map(result => ({
+              partOfSpeech: result.partOfSpeech || 'word',
+              text: result.definition || 'Definition not available'
+            }));
+          
+          // If no valid definitions found, show all definitions as fallback
+          const definitions = validDefinitions.length > 0 ? validDefinitions : 
+            data.results.map(result => ({
+              partOfSpeech: result.partOfSpeech || 'word',
+              text: result.definition || 'Definition not available'
+            }));
           
           definition.value = {
             word: word,

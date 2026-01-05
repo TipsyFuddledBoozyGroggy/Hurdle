@@ -274,17 +274,28 @@ class Dictionary {
       if (response.ok) {
         const data = await response.json();
         // Check if the word has at least one definition with meaningful content
+        // and contains 'typeOf' (common concepts) rather than 'instanceOf' (specific instances/names)
         const hasValidDefinition = data.results && data.results.length > 0 && 
                data.results.some(result => 
                  result.definition && 
                  result.definition.trim() && 
-                 result.definition.trim().length > 10 // Ensure definition has substance
+                 result.definition.trim().length > 10 && // Ensure definition has substance
+                 result.typeOf && // Must have typeOf (indicates common concept)
+                 !result.instanceOf // Must NOT have instanceOf (indicates specific instance/name)
                );
         
         if (hasValidDefinition) {
-          console.log(`Word "${word}" has ${data.results.length} definition(s)`);
+          const validResults = data.results.filter(result => 
+            result.typeOf && !result.instanceOf
+          );
+          console.log(`Word "${word}" has ${validResults.length} valid definition(s) with typeOf`);
         } else {
-          console.log(`Word "${word}" exists but has no valid definitions`);
+          const hasInstanceOf = data.results && data.results.some(result => result.instanceOf);
+          if (hasInstanceOf) {
+            console.log(`Word "${word}" rejected - contains instanceOf (proper noun/name)`);
+          } else {
+            console.log(`Word "${word}" rejected - no typeOf found (not a common concept)`);
+          }
         }
         
         return hasValidDefinition;
