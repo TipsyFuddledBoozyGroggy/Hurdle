@@ -39,8 +39,10 @@
     
     <div v-if="definition" id="definition-area">
       <div class="word-title">{{ definition.word }}</div>
-      <div class="definition-text">
-        <em>{{ definition.partOfSpeech }}</em> - {{ definition.text }}
+      <div v-for="(def, index) in definition.definitions" :key="index" class="definition-item">
+        <div class="definition-text">
+          <em>{{ def.partOfSpeech }}</em> - {{ def.text }}
+        </div>
       </div>
     </div>
     
@@ -308,17 +310,20 @@ export default {
           const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
           if (tile) {
             tile.classList.add('flipping');
-            // After flip animation completes, add the final status immediately
+            // Add the status class halfway through the flip (at 90 degrees)
+            setTimeout(() => {
+              tile.classList.add(feedback[i].status);
+            }, 330); // Halfway through the 0.66s animation
+            // Remove flipping class when animation completes
             setTimeout(() => {
               tile.classList.remove('flipping');
-              tile.classList.add(feedback[i].status);
             }, 660); // Full flip animation duration (0.66s)
           }
-        }, i * 125); // Stagger the animations
+        }, i * 100); // Stagger the animations
       }
       
       // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      await new Promise(resolve => setTimeout(resolve, 1060));
       
       // Clear animating state - no need to force re-render since colors are already applied
       animatingRowIndex.value = -1;
@@ -343,8 +348,10 @@ export default {
           // In Node.js environment (tests), skip API call
           definition.value = {
             word: word,
-            partOfSpeech: 'noun',
-            text: 'Definition not available in test environment'
+            definitions: [{
+              partOfSpeech: 'noun',
+              text: 'Definition not available in test environment'
+            }]
           };
           return;
         }
@@ -362,8 +369,10 @@ export default {
         if (response.status === 403) {
           definition.value = {
             word: word,
-            partOfSpeech: 'uncommon word',
-            text: 'This is a rare or technical English word. Definition not available with demo API key.'
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available with demo API key.'
+            }]
           };
           return;
         }
@@ -372,8 +381,10 @@ export default {
           // Don't throw error, just handle gracefully
           definition.value = {
             word: word,
-            partOfSpeech: 'uncommon word',
-            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            }]
           };
           return;
         }
@@ -382,25 +393,35 @@ export default {
         
         // WordsAPI structure: { results: [{ definition, partOfSpeech }] }
         if (data && data.results && data.results.length > 0) {
-          const result = data.results[0];
-          definition.value = {
-            word: word,
+          // Collect all definitions from the results array
+          const definitions = data.results.map(result => ({
             partOfSpeech: result.partOfSpeech || 'word',
             text: result.definition || 'Definition not available'
+          }));
+          
+          definition.value = {
+            word: word,
+            definitions: definitions
           };
+          
+          console.log(`Found ${definitions.length} definition(s) for "${word}":`, definitions);
         } else {
           definition.value = {
             word: word,
-            partOfSpeech: 'uncommon word',
-            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            }]
           };
         }
       } catch (error) {
         // Silently handle errors for uncommon words - don't log to console
         definition.value = {
           word: word,
-          partOfSpeech: 'uncommon word',
-          text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+          definitions: [{
+            partOfSpeech: 'uncommon word',
+            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+          }]
         };
       }
     };

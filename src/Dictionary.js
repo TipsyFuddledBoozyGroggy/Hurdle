@@ -151,15 +151,8 @@ class Dictionary {
         console.warn(this.apiTracker.getUsageMessage());
         this.limitExceededMessageShown = true;
       }
-      // Fall back to local dictionary (excluding proper nouns)
-      const nonProperNounWords = this.getNonProperNounWords();
-      if (nonProperNounWords.length === 0) {
-        // Fallback to all words if no non-proper nouns found
-        const randomIndex = Math.floor(Math.random() * this.wordArray.length);
-        return this.wordArray[randomIndex];
-      }
-      const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
-      return nonProperNounWords[randomIndex];
+      // Fall back to local dictionary with definition verification
+      return await this.getRandomWordFromLocalDictionary();
     }
 
     // Try to get an uncommon word from WordsAPI first
@@ -176,13 +169,52 @@ class Dictionary {
       }
     }
     
-    // Fallback to local dictionary (excluding proper nouns)
+    // Fallback to local dictionary with definition verification
+    return await this.getRandomWordFromLocalDictionary();
+  }
+
+  /**
+   * Get a random word from local dictionary with definition verification
+   * @returns {Promise<string>} A random word that has definitions in WordsAPI
+   */
+  async getRandomWordFromLocalDictionary() {
     const nonProperNounWords = this.getNonProperNounWords();
     if (nonProperNounWords.length === 0) {
       // Fallback to all words if no non-proper nouns found
       const randomIndex = Math.floor(Math.random() * this.wordArray.length);
       return this.wordArray[randomIndex];
     }
+
+    // Try up to 10 times to find a word with definitions
+    const maxAttempts = 10;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
+      const candidateWord = nonProperNounWords[randomIndex];
+      
+      // If WordsAPI is available, verify the word has definitions
+      if (this.wordsApiEnabled) {
+        try {
+          const hasDefinition = await this.verifyWordHasDefinition(candidateWord);
+          if (hasDefinition) {
+            console.log(`Selected word "${candidateWord}" with verified definition`);
+            return candidateWord;
+          } else {
+            console.log(`Rejected word "${candidateWord}" - no definitions found`);
+            continue;
+          }
+        } catch (error) {
+          // If verification fails, continue to next word
+          console.warn(`Could not verify definition for "${candidateWord}":`, error.message);
+          continue;
+        }
+      } else {
+        // If WordsAPI is not available, return the word without verification
+        return candidateWord;
+      }
+    }
+    
+    // If we couldn't find a word with definitions after maxAttempts, return a random word
+    console.warn(`Could not find a word with definitions after ${maxAttempts} attempts, returning random word`);
     const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
     return nonProperNounWords[randomIndex];
   }
@@ -229,25 +261,41 @@ class Dictionary {
 
       // Handle 403 Forbidden (API key issues) gracefully
       if (response.status === 403) {
-        // If we can't verify due to API limits, assume it has definitions to avoid blocking gameplay
+        // If we can't verify due to API limits, return false to avoid words without definitions
         console.warn(`Could not verify definition for word: ${word} - API key limit reached`);
-        return true;
+        return false;
+      }
+
+      // Handle 404 Not Found - word doesn't exist
+      if (response.status === 404) {
+        return false;
       }
 
       if (response.ok) {
         const data = await response.json();
-        // Check if the word has at least one definition
-        // WordsAPI returns results array with definition objects
-        return data.results && data.results.length > 0 && 
-               data.results.some(result => result.definition && result.definition.trim());
+        // Check if the word has at least one definition with meaningful content
+        const hasValidDefinition = data.results && data.results.length > 0 && 
+               data.results.some(result => 
+                 result.definition && 
+                 result.definition.trim() && 
+                 result.definition.trim().length > 10 // Ensure definition has substance
+               );
+        
+        if (hasValidDefinition) {
+          console.log(`Word "${word}" has ${data.results.length} definition(s)`);
+        } else {
+          console.log(`Word "${word}" exists but has no valid definitions`);
+        }
+        
+        return hasValidDefinition;
       }
       
       // If the word doesn't exist or has no definitions, return false
       return false;
     } catch (error) {
-      // If verification fails due to network issues, assume it has definitions to avoid blocking gameplay
+      // If verification fails due to network issues, return false to be safe
       console.warn(`Could not verify definition for word: ${word}`, error.message);
-      return true;
+      return false;
     }
   }
 

@@ -283,6 +283,15 @@ button:disabled {
   text-transform: uppercase;
 }
 
+#definition-area .definition-item {
+  margin-bottom: 8px;
+  padding: 6px 0;
+}
+
+#definition-area .definition-item:not(:last-child) {
+  border-bottom: 1px solid #3a3a3c;
+}
+
 #definition-area .definition-text {
   color: #d7dadc;
   font-style: italic;
