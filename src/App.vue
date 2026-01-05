@@ -315,11 +315,11 @@ export default {
               tile.classList.remove('flipping');
             }, 660); // Full flip animation duration (0.66s)
           }
-        }, i * 100); // Stagger the animations
+        }, i * 300); // Stagger the animations with 300ms between each tile
       }
       
-      // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)
-      await new Promise(resolve => setTimeout(resolve, 1060));
+      // Wait for all animations to complete (last tile starts at 1200ms + 800ms animation = 2000ms)
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Clear animating state - no need to force re-render since colors are already applied
       animatingRowIndex.value = -1;
