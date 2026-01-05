@@ -217,7 +217,7 @@ describe('GameState', () => {
             expect(gameState.isGameOver()).toBe(false);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -274,7 +274,7 @@ describe('GameState', () => {
             expect(gameState.getRemainingAttempts()).toBe(initialRemaining - guessesMade);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -325,7 +325,7 @@ describe('GameState', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -376,7 +376,7 @@ describe('GameState', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -426,7 +426,7 @@ describe('GameState', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
   });

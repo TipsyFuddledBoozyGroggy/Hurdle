@@ -314,7 +314,7 @@ export default {
               tile.classList.add(feedback[i].status);
             }, 660); // Full flip animation duration (0.66s)
           }
-        }, i * 100); // Stagger the animations
+        }, i * 125); // Stagger the animations
       }
       
       // Wait for all animations to complete (last tile starts at 400ms + 660ms animation = 1060ms)

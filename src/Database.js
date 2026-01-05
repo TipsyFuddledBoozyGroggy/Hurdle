@@ -167,7 +167,6 @@ class Database {
           VALUES ('{"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0}')
         `);
       }
-
       console.log('Database schema initialized');
     } catch (error) {
       console.error('Schema initialization failed:', error.message);

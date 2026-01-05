@@ -10,6 +10,22 @@
       },
       "disabled": true,
       "autoApprove": []
+    },
+    "database": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-database@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "DATABASE_URL": "mysql://hurdle_user:hurdle_password@localhost:3306/hurdle"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "query_database",
+        "list_tables",
+        "describe_table"
+      ]
     }
   }
 }

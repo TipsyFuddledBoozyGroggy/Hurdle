@@ -27,13 +27,13 @@ class Dictionary {
     // Environment detection
     this.isProduction = this.detectProductionEnvironment();
     
-    // WordsAPI configuration - only enabled in production
-    this.wordsApiEnabled = typeof fetch !== 'undefined' && this.isProduction;
+    // WordsAPI configuration - enabled in both development and production
+    this.wordsApiEnabled = typeof fetch !== 'undefined';
     this.apiRetryCount = 0;
     this.maxRetries = 3;
     
-    // Initialize API tracker only in production
-    this.apiTracker = (WordsAPITracker && this.isProduction) ? new WordsAPITracker() : null;
+    // Initialize API tracker in both development and production
+    this.apiTracker = (WordsAPITracker) ? new WordsAPITracker() : null;
     this.limitExceededMessageShown = false;
     
     // Log environment mode
@@ -82,13 +82,8 @@ class Dictionary {
       return false;
     }
 
-    // In development mode, always use local dictionary
-    if (!this.isProduction) {
-      return this.wordSet.has(word.toLowerCase());
-    }
-
-    // Check API limit before making request (production only)
-    if (this.apiTracker && !this.apiTracker.canMakeRequest()) {
+    // Check API limit before making request
+    if (this.apiTracker && !this.apiTracker.shouldUseAPI()) {
       if (!this.limitExceededMessageShown) {
         console.warn(this.apiTracker.getUsageMessage());
         this.limitExceededMessageShown = true;
@@ -98,7 +93,7 @@ class Dictionary {
     }
 
     try {
-      // Use WordsAPI for word validation (production only)
+      // Use WordsAPI for word validation
       const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
         method: 'GET',
         headers: {
@@ -107,12 +102,15 @@ class Dictionary {
         }
       });
 
-      // Record the API request
+      // Extract and update rate limit information from headers
       if (this.apiTracker) {
-        const usage = this.apiTracker.recordRequest();
-        // Log usage periodically
-        if (usage.count % 100 === 0 || usage.count >= 2400) {
-          console.log(this.apiTracker.getUsageMessage());
+        const rateLimitInfo = this.apiTracker.updateFromHeaders(response);
+        if (rateLimitInfo) {
+          // Check thresholds and log warnings
+          this.apiTracker.checkRateLimitThresholds(rateLimitInfo);
+        } else {
+          // Only record to storage when headers are unavailable (fallback mode)
+          this.apiTracker.recordRequest();
         }
       }
 
@@ -147,20 +145,8 @@ class Dictionary {
    * @returns {Promise<string>} A random 5-letter uncommon word
    */
   async getRandomWord() {
-    // In development mode, always use local dictionary (excluding proper nouns)
-    if (!this.isProduction) {
-      const nonProperNounWords = this.getNonProperNounWords();
-      if (nonProperNounWords.length === 0) {
-        // Fallback to all words if no non-proper nouns found
-        const randomIndex = Math.floor(Math.random() * this.wordArray.length);
-        return this.wordArray[randomIndex];
-      }
-      const randomIndex = Math.floor(Math.random() * nonProperNounWords.length);
-      return nonProperNounWords[randomIndex];
-    }
-
-    // Check API limit before making request (production only)
-    if (this.apiTracker && !this.apiTracker.canMakeRequest()) {
+    // Check API limit before making request
+    if (this.apiTracker && !this.apiTracker.shouldUseAPI()) {
       if (!this.limitExceededMessageShown) {
         console.warn(this.apiTracker.getUsageMessage());
         this.limitExceededMessageShown = true;
@@ -176,7 +162,7 @@ class Dictionary {
       return nonProperNounWords[randomIndex];
     }
 
-    // Try to get an uncommon word from WordsAPI first (production only)
+    // Try to get an uncommon word from WordsAPI first
     if (this.wordsApiEnabled && this.apiRetryCount < this.maxRetries) {
       try {
         const uncommonWord = await this.getRandomUncommonWordFromAPI();
@@ -215,6 +201,66 @@ class Dictionary {
   }
 
   /**
+   * Verify that a word has at least one valid definition from WordsAPI
+   * @param {string} word - The word to check for definitions
+   * @returns {Promise<boolean>} True if the word has definitions, false otherwise
+   */
+  async verifyWordHasDefinition(word) {
+    try {
+      const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b',
+          'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+        }
+      });
+
+      // Record the API request for definition validation and extract headers
+      if (this.apiTracker) {
+        const rateLimitInfo = this.apiTracker.updateFromHeaders(response);
+        if (rateLimitInfo) {
+          // Check thresholds and log warnings
+          this.apiTracker.checkRateLimitThresholds(rateLimitInfo);
+        } else {
+          // Only record to storage when headers are unavailable (fallback mode)
+          this.apiTracker.recordRequest();
+        }
+      }
+
+      // Handle 403 Forbidden (API key issues) gracefully
+      if (response.status === 403) {
+        // If we can't verify due to API limits, assume it has definitions to avoid blocking gameplay
+        console.warn(`Could not verify definition for word: ${word} - API key limit reached`);
+        return true;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        // Check if the word has at least one definition
+        // WordsAPI returns results array with definition objects
+        return data.results && data.results.length > 0 && 
+               data.results.some(result => result.definition && result.definition.trim());
+      }
+      
+      // If the word doesn't exist or has no definitions, return false
+      return false;
+    } catch (error) {
+      // If verification fails due to network issues, assume it has definitions to avoid blocking gameplay
+      console.warn(`Could not verify definition for word: ${word}`, error.message);
+      return true;
+    }
+  }
+
+  /**
+   * Validate that a word contains only letters and is exactly 5 characters
+   * @param {string} word - The word to validate
+   * @returns {boolean} True if the word format is valid
+   */
+  validateWordFormat(word) {
+    return /^[a-zA-Z]{5}$/.test(word);
+  }
+
+  /**
    * Get words that are not proper nouns
    * @returns {string[]} Array of words that are not proper nouns
    */
@@ -223,31 +269,41 @@ class Dictionary {
   }
 
   /**
-   * Get a random uncommon 5-letter word from WordsAPI
-   * @returns {Promise<string|null>} An uncommon word or null if failed
+   * Get a random uncommon 5-letter word from WordsAPI with definition validation
+   * @returns {Promise<string|null>} An uncommon word with definitions or null if failed
    */
   async getRandomUncommonWordFromAPI() {
     try {
+      // Create properly encoded URL parameters
+      const params = new URLSearchParams({
+        letterPattern: '^[a-zA-Z]{5}$',  // Only letters, exactly 5 characters
+        frequencyMin: '1',
+        frequencyMax: '3',
+        random: 'true'
+      });
+      
+      const url = `https://wordsapiv1.p.rapidapi.com/words/?${params.toString()}`;
+      
       // Search for random 5-letter words with letters only (no numbers/symbols)
-      // letterPattern=^[a-zA-Z]{5}$ ensures only letters
       // frequencyMin=1, frequencyMax=3 targets rare words
-      const response = await fetch(
-        'https://wordsapiv1.p.rapidapi.com/words/?letterPattern=^[a-zA-Z]{5}$&frequencyMin=1&frequencyMax=3&random=true',
-        {
-          method: 'GET',
-          headers: {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
             'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
             'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
           }
         }
       );
 
-      // Record the API request
+      // Record the API request and extract headers
       if (this.apiTracker) {
-        const usage = this.apiTracker.recordRequest();
-        // Log usage periodically
-        if (usage.count % 100 === 0 || usage.count >= 2400) {
-          console.log(this.apiTracker.getUsageMessage());
+        const rateLimitInfo = this.apiTracker.updateFromHeaders(response);
+        if (rateLimitInfo) {
+          // Check thresholds and log warnings
+          this.apiTracker.checkRateLimitThresholds(rateLimitInfo);
+        } else {
+          // Only record to storage when headers are unavailable (fallback mode)
+          this.apiTracker.recordRequest();
         }
       }
 
@@ -263,20 +319,31 @@ class Dictionary {
 
       const data = await response.json();
       
-      // Helper function to check if word contains only letters
-      const isLettersOnly = (word) => /^[a-zA-Z]+$/.test(word);
+      // Extract and validate word from API response
+      let word = null;
       
       // WordsAPI returns either a single word object or search results
-      if (data.word && data.word.length === 5 && isLettersOnly(data.word)) {
-        return data.word.toLowerCase();
+      if (data.word && data.word.length === 5 && this.validateWordFormat(data.word)) {
+        word = data.word.toLowerCase();
       } else if (data.results && data.results.data && data.results.data.length > 0) {
-        // Pick a random word from the results, filtering for letters only
-        const words = data.results.data.filter(word => 
-          word.length === 5 && isLettersOnly(word)
+        // Pick a random word from the results, filtering for valid format
+        const validWords = data.results.data.filter(w => 
+          w.length === 5 && this.validateWordFormat(w)
         );
-        if (words.length > 0) {
-          const randomIndex = Math.floor(Math.random() * words.length);
-          return words[randomIndex].toLowerCase();
+        if (validWords.length > 0) {
+          const randomIndex = Math.floor(Math.random() * validWords.length);
+          word = validWords[randomIndex].toLowerCase();
+        }
+      }
+      
+      // If we found a word, verify it has definitions before accepting it
+      if (word) {
+        const hasDefinition = await this.verifyWordHasDefinition(word);
+        if (hasDefinition) {
+          return word;
+        } else {
+          console.log(`Rejected word "${word}" - no definitions found`);
+          return null;
         }
       }
       

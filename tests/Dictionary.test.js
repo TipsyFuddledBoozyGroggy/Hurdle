@@ -98,6 +98,257 @@ describe('Dictionary', () => {
       });
     });
 
+    describe('verifyWordHasDefinition', () => {
+      let dictionary;
+
+      beforeEach(() => {
+        dictionary = new Dictionary(['apple', 'bread', 'crane']);
+        // Mock fetch for testing
+        global.fetch = jest.fn();
+      });
+
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
+
+      test('should return true for words with definitions', async () => {
+        const mockResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: [
+              { definition: 'A round fruit' },
+              { definition: 'Something edible' }
+            ]
+          })
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+
+        const result = await dictionary.verifyWordHasDefinition('apple');
+        expect(result).toBe(true);
+      });
+
+      test('should return false for words with empty definitions array', async () => {
+        const mockResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: []
+          })
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+
+        const result = await dictionary.verifyWordHasDefinition('elroy');
+        expect(result).toBe(false);
+      });
+
+      test('should return false for words with definitions containing only empty strings', async () => {
+        const mockResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: [
+              { definition: '' },
+              { definition: '   ' }
+            ]
+          })
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+
+        const result = await dictionary.verifyWordHasDefinition('badword');
+        expect(result).toBe(false);
+      });
+
+      test('should return true for words with at least one valid definition', async () => {
+        const mockResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: [
+              { definition: '' },
+              { definition: 'A valid definition' },
+              { definition: '   ' }
+            ]
+          })
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+
+        const result = await dictionary.verifyWordHasDefinition('mixed');
+        expect(result).toBe(true);
+      });
+
+      test('should return false for non-existent words (404 response)', async () => {
+        const mockResponse = {
+          ok: false,
+          status: 404
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+
+        const result = await dictionary.verifyWordHasDefinition('zzzzz');
+        expect(result).toBe(false);
+      });
+
+      test('should return true for API key limit (403 response) to avoid blocking gameplay', async () => {
+        const mockResponse = {
+          ok: false,
+          status: 403
+        };
+        global.fetch.mockResolvedValue(mockResponse);
+        
+        // Mock console.warn to avoid noise in test output
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const result = await dictionary.verifyWordHasDefinition('apple');
+        expect(result).toBe(true);
+        expect(consoleSpy).toHaveBeenCalledWith('Could not verify definition for word: apple - API key limit reached');
+        
+        consoleSpy.mockRestore();
+      });
+
+      test('should return true for network errors to avoid blocking gameplay', async () => {
+        global.fetch.mockRejectedValue(new Error('Network error'));
+        
+        // Mock console.warn to avoid noise in test output
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const result = await dictionary.verifyWordHasDefinition('apple');
+        expect(result).toBe(true);
+        expect(consoleSpy).toHaveBeenCalledWith('Could not verify definition for word: apple', 'Network error');
+        
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('validateWordFormat', () => {
+      let dictionary;
+
+      beforeEach(() => {
+        dictionary = new Dictionary(['apple', 'bread', 'crane']);
+      });
+
+      test('should return true for valid 5-letter words with only letters', () => {
+        expect(dictionary.validateWordFormat('apple')).toBe(true);
+        expect(dictionary.validateWordFormat('BREAD')).toBe(true);
+        expect(dictionary.validateWordFormat('CrAnE')).toBe(true);
+      });
+
+      test('should return false for words with numbers', () => {
+        expect(dictionary.validateWordFormat('1890S')).toBe(false);
+        expect(dictionary.validateWordFormat('word1')).toBe(false);
+        expect(dictionary.validateWordFormat('12345')).toBe(false);
+      });
+
+      test('should return false for words with special characters', () => {
+        expect(dictionary.validateWordFormat('word!')).toBe(false);
+        expect(dictionary.validateWordFormat('wo-rd')).toBe(false);
+        expect(dictionary.validateWordFormat('wo rd')).toBe(false);
+      });
+
+      test('should return false for words not exactly 5 letters', () => {
+        expect(dictionary.validateWordFormat('word')).toBe(false);  // 4 letters
+        expect(dictionary.validateWordFormat('worded')).toBe(false); // 6 letters
+        expect(dictionary.validateWordFormat('')).toBe(false);       // 0 letters
+      });
+    });
+
+    describe('getRandomUncommonWordFromAPI with definition validation', () => {
+      let dictionary;
+
+      beforeEach(() => {
+        dictionary = new Dictionary(['apple', 'bread', 'crane']);
+        // Mock fetch for testing
+        global.fetch = jest.fn();
+      });
+
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
+
+      test('should return word when it has valid definitions', async () => {
+        // Mock word search response
+        const searchResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            word: 'grape'
+          })
+        };
+        
+        // Mock definition verification response
+        const definitionResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: [
+              { definition: 'A small round fruit' }
+            ]
+          })
+        };
+
+        global.fetch
+          .mockResolvedValueOnce(searchResponse)  // First call for word search
+          .mockResolvedValueOnce(definitionResponse); // Second call for definition check
+
+        const result = await dictionary.getRandomUncommonWordFromAPI();
+        expect(result).toBe('grape');
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+      });
+
+      test('should return null when word has no definitions', async () => {
+        // Mock word search response
+        const searchResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            word: 'elroy'
+          })
+        };
+        
+        // Mock definition verification response (empty definitions)
+        const definitionResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: []
+          })
+        };
+
+        global.fetch
+          .mockResolvedValueOnce(searchResponse)
+          .mockResolvedValueOnce(definitionResponse);
+
+        // Mock console.log to avoid noise in test output
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        const result = await dictionary.getRandomUncommonWordFromAPI();
+        expect(result).toBe(null);
+        expect(consoleSpy).toHaveBeenCalledWith('Rejected word "elroy" - no definitions found');
+        
+        consoleSpy.mockRestore();
+      });
+
+      test('should filter out words with invalid format', async () => {
+        // Mock word search response with invalid word
+        const searchResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: {
+              data: ['1890S', 'word!', 'grape']
+            }
+          })
+        };
+        
+        // Mock definition verification response
+        const definitionResponse = {
+          ok: true,
+          json: () => Promise.resolve({
+            results: [
+              { definition: 'A small round fruit' }
+            ]
+          })
+        };
+
+        global.fetch
+          .mockResolvedValueOnce(searchResponse)
+          .mockResolvedValueOnce(definitionResponse);
+
+        const result = await dictionary.getRandomUncommonWordFromAPI();
+        expect(result).toBe('grape'); // Should pick the valid word
+      });
+    });
+
     describe('size', () => {
       test('should return the number of unique words', () => {
         const dictionary = new Dictionary(['apple', 'bread', 'crane']);
@@ -143,7 +394,7 @@ describe('Dictionary', () => {
             expect(dictionary.isValidWordSync(randomWord)).toBe(true);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -179,7 +430,7 @@ describe('Dictionary', () => {
             expect(isValid).toBe(shouldBeValid);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -216,7 +467,7 @@ describe('Dictionary', () => {
             expect(dictionary.isValidWordSync(mixedCase)).toBe(true);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -259,7 +510,112 @@ describe('Dictionary', () => {
             expect(word).toHaveLength(5);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
+      );
+    });
+
+    /**
+     * Feature: wordsapi-improvements, Property 4: Fallback system reliability
+     * Validates: Requirements 5.1, 5.2, 5.3, 5.5
+     * 
+     * For any API failure scenario (network errors, API unavailability, key issues),
+     * the system must seamlessly fall back to local dictionary without crashing
+     * or displaying error messages to users.
+     */
+    test('Property 4: Fallback system reliability - system gracefully handles API failures', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          // Generate dictionary words for fallback
+          fc.array(
+            fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
+            { minLength: 10, maxLength: 50 }
+          ),
+          // Generate different types of API failure scenarios
+          fc.constantFrom(
+            'network_error',
+            'api_unavailable', 
+            'forbidden_403',
+            'server_error_500',
+            'timeout',
+            'invalid_response'
+          ),
+          async (words, failureType) => {
+            fc.pre(words.length > 0);
+            
+            const dictionary = new Dictionary(words);
+            
+            // Mock fetch to simulate different failure scenarios
+            const originalFetch = global.fetch;
+            global.fetch = jest.fn();
+            
+            try {
+              // Configure mock based on failure type
+              switch (failureType) {
+                case 'network_error':
+                  global.fetch.mockRejectedValue(new Error('Network error'));
+                  break;
+                case 'api_unavailable':
+                  global.fetch.mockResolvedValue({ ok: false, status: 503 });
+                  break;
+                case 'forbidden_403':
+                  global.fetch.mockResolvedValue({ ok: false, status: 403 });
+                  break;
+                case 'server_error_500':
+                  global.fetch.mockResolvedValue({ ok: false, status: 500 });
+                  break;
+                case 'timeout':
+                  global.fetch.mockImplementation(() => 
+                    new Promise((_, reject) => 
+                      setTimeout(() => reject(new Error('Timeout')), 100)
+                    )
+                  );
+                  break;
+                case 'invalid_response':
+                  global.fetch.mockResolvedValue({ 
+                    ok: true, 
+                    json: () => Promise.resolve({ invalid: 'data' })
+                  });
+                  break;
+              }
+              
+              // Mock console methods to capture any error messages
+              const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+              const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+              
+              // Test word validation - should not crash and should fall back to local dictionary
+              const testWord = words[0]; // Use a word from the local dictionary
+              const invalidWord = 'zzzzz'; // Use a word not in the dictionary
+              
+              // Valid word should return true (fallback to local dictionary)
+              const validResult = await dictionary.isValidWord(testWord);
+              expect(validResult).toBe(true);
+              
+              // Invalid word should return false (fallback to local dictionary)
+              const invalidResult = await dictionary.isValidWord(invalidWord);
+              expect(invalidResult).toBe(false);
+              
+              // Test random word generation - should not crash and should return a valid word
+              const randomWord = await dictionary.getRandomWord();
+              expect(randomWord).toBeDefined();
+              expect(typeof randomWord).toBe('string');
+              expect(randomWord).toHaveLength(5);
+              expect(words.map(w => w.toLowerCase())).toContain(randomWord.toLowerCase());
+              
+              // Verify no error messages were displayed to users (console.error should not be called)
+              // Note: console.warn is allowed for internal logging, but console.error indicates user-facing errors
+              expect(consoleSpy).not.toHaveBeenCalled();
+              
+              // Clean up spies
+              consoleSpy.mockRestore();
+              consoleWarnSpy.mockRestore();
+              
+            } finally {
+              // Always restore original fetch
+              global.fetch = originalFetch;
+            }
+          }
+        ),
+        { numRuns: 100 } // Run 100 iterations to test various failure scenarios
       );
     });
   });

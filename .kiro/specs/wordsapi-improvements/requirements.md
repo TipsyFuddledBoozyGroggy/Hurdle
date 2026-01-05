@@ -23,18 +23,20 @@ This specification addresses critical improvements to the WordsAPI integration i
 
 ### Requirement 1: Fix WordsAPI Word Filtering and Definition Validation
 
-**User Story:** As a player, I want to only receive valid alphabetic words with definitions from the game, so that I don't encounter invalid words like "1890S" or words without definitions.
+**User Story:** As a player, I want to only receive valid alphabetic words with definitions from the game, so that I don't encounter invalid words like "1890S" or words without definitions like "elroy" that return empty definition arrays.
 
 #### Acceptance Criteria
 
 1. WHEN requesting random words from WordsAPI, THEN the system SHALL use proper letter-pattern filtering to ensure only alphabetic characters
 2. WHEN WordsAPI returns a word, THEN the system SHALL validate that the word contains only letters (a-z, A-Z) before accepting it
-3. WHEN WordsAPI returns a word, THEN the system SHALL verify that the word has at least one definition available in WordsAPI
-4. WHEN a word lacks definitions, THEN the system SHALL reject it and either retry or fall back to local dictionary
-5. WHEN an invalid word is received from WordsAPI, THEN the system SHALL reject it and either retry or fall back to local dictionary
-6. WHEN making WordsAPI requests, THEN the system SHALL use the correct URL format with proper parameter encoding
-7. THE system SHALL never present words containing numbers, symbols, or special characters to players
-8. THE system SHALL only present words that have definitions available for display after game completion
+3. WHEN WordsAPI returns a word, THEN the system SHALL make a separate API call to verify that the word has at least one valid definition
+4. WHEN a word's definition response contains an empty definitions array (like "elroy"), THEN the system SHALL reject it as invalid
+5. WHEN a word lacks definitions or has empty definition arrays, THEN the system SHALL reject it and either retry with a different word or fall back to local dictionary
+6. WHEN an invalid word is received from WordsAPI, THEN the system SHALL reject it and either retry or fall back to local dictionary
+7. WHEN making WordsAPI requests, THEN the system SHALL use the correct URL format with proper parameter encoding
+8. THE system SHALL never present words containing numbers, symbols, or special characters to players
+9. THE system SHALL only present words that have at least one non-empty definition available for display after game completion
+10. THE system SHALL validate that definition arrays are not empty before accepting any word from WordsAPI
 
 ### Requirement 2: Header-Based API Request Tracking
 

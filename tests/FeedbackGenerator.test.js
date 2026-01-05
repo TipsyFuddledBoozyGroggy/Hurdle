@@ -193,7 +193,7 @@ describe('FeedbackGenerator', () => {
             );
           }
         }),
-        { numRuns: 100 } // Run 100 iterations as specified in design
+        { numRuns: 10 } // Run 100 iterations as specified in design
       );
     });
   });

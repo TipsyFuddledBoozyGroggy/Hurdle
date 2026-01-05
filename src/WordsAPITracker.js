@@ -1,15 +1,178 @@
 /**
- * WordsAPI Request Tracker
+ * WordsAPI Request Tracker - Header-Priority Architecture
+ * 
+ * This tracker prioritizes real-time header information from WordsAPI responses
+ * over local storage tracking. File-based tracking is only used as a fallback
+ * when header information is unavailable.
+ * 
+ * Priority Order:
+ * 1. Header-based tracking (x-ratelimit-requests-remaining) - Most reliable
+ * 2. Storage-based tracking (.wordsapi-usage.json) - Fallback only
+ * 
  * Tracks API requests to stay within the 2500/month limit
  */
 
 class WordsAPITracker {
   constructor() {
-    this.MONTHLY_LIMIT = 2500;
+    this.MONTHLY_LIMIT = 2500; // Fallback if headers unavailable
     this.storageKey = 'wordsapi_usage';
     this.isNode = typeof window === 'undefined';
+    
+    // Header-based tracking state (PRIMARY)
+    this.lastKnownRemaining = null;
+    this.lastKnownLimit = null;
+    this.lastKnownReset = null;
+    this.lastHeaderUpdate = null;
+    this.warningThresholds = {
+      high: 250,    // Warn when < 250 remaining (90%)
+      medium: 625,  // Log when < 625 remaining (75%)
+    };
   }
 
+  /**
+   * Check if header-based tracking is available and reliable
+   * @returns {boolean} True if we have recent header data
+   */
+  hasReliableHeaderData() {
+    return this.lastKnownRemaining !== null && this.lastHeaderUpdate !== null;
+  }
+
+  /**
+   * Get the current tracking mode being used
+   * @returns {string} 'headers' or 'storage'
+   */
+  getCurrentTrackingMode() {
+    return this.hasReliableHeaderData() ? 'headers' : 'storage';
+  }
+
+  /**
+   * Extract rate limit information from API response headers
+   * @param {Response} response - The fetch response object
+   * @returns {Object|null} Rate limit info or null if headers unavailable
+   */
+  updateFromHeaders(response) {
+    if (!response || !response.headers) {
+      return null;
+    }
+
+    const remaining = response.headers.get('x-ratelimit-requests-remaining');
+    const limit = response.headers.get('x-ratelimit-requests-limit');
+    const reset = response.headers.get('x-ratelimit-requests-reset');
+    
+    if (remaining !== null) {
+      this.lastKnownRemaining = parseInt(remaining);
+      this.lastHeaderUpdate = new Date().toISOString();
+      
+      // Update monthly limit if provided
+      if (limit !== null) {
+        this.lastKnownLimit = parseInt(limit);
+        this.MONTHLY_LIMIT = this.lastKnownLimit;
+      }
+      
+      // Store reset time if provided
+      if (reset !== null) {
+        this.lastKnownReset = reset;
+      }
+      
+      return {
+        remaining: this.lastKnownRemaining,
+        limit: this.lastKnownLimit || this.MONTHLY_LIMIT,
+        reset: this.lastKnownReset,
+        updated: this.lastHeaderUpdate
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Check if we should use API based on header information (primary) or storage (fallback)
+   * @returns {boolean} True if we should make API requests
+   */
+  shouldUseAPI() {
+    // PRIORITY 1: Use header-based tracking if available
+    if (this.lastKnownRemaining !== null) {
+      // Need at least 2 requests: one for word search, one for definition check
+      return this.lastKnownRemaining >= 2;
+    }
+    
+    // PRIORITY 2: Fallback to storage-based tracking only when headers unavailable
+    // This is conservative and only used when we have no header information
+    const usage = this.getUsageData();
+    const remaining = this.MONTHLY_LIMIT - usage.count;
+    return remaining >= 2; // Need at least 2 requests for word + definition check
+  }
+
+  /**
+   * Get real-time usage statistics - prioritizes headers over storage
+   * @returns {Object} Usage statistics with header information preferred
+   */
+  getHeaderBasedStats() {
+    // PRIORITY 1: Use header-based data if available (most accurate)
+    if (this.lastKnownRemaining !== null) {
+      const limit = this.lastKnownLimit || this.MONTHLY_LIMIT;
+      const used = limit - this.lastKnownRemaining;
+      const percentage = Math.round((used / limit) * 100);
+      
+      return {
+        used: used,
+        limit: limit,
+        remaining: this.lastKnownRemaining,
+        percentage: percentage,
+        lastUpdate: this.lastHeaderUpdate,
+        reset: this.lastKnownReset,
+        source: 'headers',
+        reliable: true // Header data is always reliable
+      };
+    }
+    
+    // PRIORITY 2: Fallback to storage-based tracking (less reliable)
+    const usage = this.getUsageData();
+    const remaining = this.MONTHLY_LIMIT - usage.count;
+    return {
+      used: usage.count,
+      limit: this.MONTHLY_LIMIT,
+      remaining: remaining,
+      month: usage.month,
+      percentage: Math.round((usage.count / this.MONTHLY_LIMIT) * 100),
+      lastRequest: usage.lastRequest || null,
+      lastReset: usage.lastReset,
+      source: 'storage',
+      reliable: false // Storage data may be out of sync
+    };
+  }
+
+  /**
+   * Check rate limit thresholds and provide notifications
+   * @param {Object} rateLimitInfo - Rate limit info from headers
+   * @returns {string|null} Warning message if threshold exceeded
+   */
+  checkRateLimitThresholds(rateLimitInfo) {
+    if (!rateLimitInfo) return null;
+    
+    const { remaining, limit } = rateLimitInfo;
+    const percentage = ((limit - remaining) / limit) * 100;
+    
+    if (remaining === 0) {
+      const message = `⚠️ WordsAPI limit reached! No requests remaining until reset.`;
+      console.warn(message);
+      return message;
+    } else if (remaining <= 2) {
+      const message = `🚨 WordsAPI usage critical: ${remaining} requests remaining - switching to local dictionary`;
+      console.warn(message);
+      return message;
+    } else if (remaining <= this.warningThresholds.high) {
+      const message = `⚠️ WordsAPI usage high: ${remaining} requests remaining (${percentage.toFixed(1)}% used)`;
+      console.warn(message);
+      return message;
+    } else if (remaining <= this.warningThresholds.medium) {
+      const message = `📊 WordsAPI usage: ${remaining} requests remaining (${percentage.toFixed(1)}% used)`;
+      console.log(message);
+      return message;
+    }
+    
+    return null;
+  }
   /**
    * Get current usage data from storage
    * @returns {Object} Usage data with count and month
@@ -109,58 +272,59 @@ class WordsAPITracker {
   }
 
   /**
-   * Check if we can make a request (under the limit)
+   * Check if we can make a request - simplified to prioritize headers
    * @returns {boolean} True if we can make a request
    */
   canMakeRequest() {
-    const usage = this.getUsageData();
-    return usage.count < this.MONTHLY_LIMIT;
+    // Simplified logic - just use shouldUseAPI which already prioritizes headers
+    return this.shouldUseAPI();
   }
 
   /**
-   * Record a successful API request
-   * @returns {Object} Updated usage data
+   * Record a successful API request - only used when headers unavailable
+   * @returns {Object} Updated usage data (only relevant for storage fallback)
    */
   recordRequest() {
-    const usage = this.getUsageData();
-    usage.count += 1;
-    usage.lastRequest = new Date().toISOString();
-    this.saveUsageData(usage);
-    return usage;
+    // Only record to storage when headers are unavailable (fallback mode)
+    if (this.lastKnownRemaining === null) {
+      const usage = this.getUsageData();
+      usage.count += 1;
+      usage.lastRequest = new Date().toISOString();
+      this.saveUsageData(usage);
+      return usage;
+    }
+    
+    // When headers are available, storage tracking is not needed
+    // Return current header-based stats instead
+    return this.getHeaderBasedStats();
   }
 
   /**
-   * Get current usage statistics
+   * Get current usage statistics (header-based preferred)
    * @returns {Object} Usage statistics
    */
   getUsageStats() {
-    const usage = this.getUsageData();
-    return {
-      used: usage.count,
-      limit: this.MONTHLY_LIMIT,
-      remaining: this.MONTHLY_LIMIT - usage.count,
-      month: usage.month,
-      percentage: Math.round((usage.count / this.MONTHLY_LIMIT) * 100),
-      lastRequest: usage.lastRequest || null,
-      lastReset: usage.lastReset
-    };
+    return this.getHeaderBasedStats();
   }
 
   /**
-   * Get user-friendly message about API usage
-   * @returns {string} Usage message
+   * Get user-friendly message about API usage - prioritizes header data
+   * @returns {string} Usage message based on most reliable data source
    */
   getUsageMessage() {
-    const stats = this.getUsageStats();
+    const stats = this.getHeaderBasedStats();
     
-    if (stats.used >= this.MONTHLY_LIMIT) {
-      return `⚠️ WordsAPI limit reached! Used ${stats.used}/${stats.limit} requests this month (${stats.month}). The game will use the local dictionary until next month.`;
+    // Add reliability indicator to message
+    const sourceIndicator = stats.reliable ? '' : ' (estimated)';
+    
+    if (stats.remaining <= 0) {
+      return `⚠️ WordsAPI limit reached! Used ${stats.used}/${stats.limit} requests${sourceIndicator}. The game will use the local dictionary until reset.`;
     } else if (stats.percentage >= 90) {
-      return `⚠️ WordsAPI usage high: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used this month.`;
+      return `⚠️ WordsAPI usage high: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used${sourceIndicator}.`;
     } else if (stats.percentage >= 75) {
-      return `📊 WordsAPI usage: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used this month.`;
+      return `📊 WordsAPI usage: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used${sourceIndicator}.`;
     } else {
-      return `✅ WordsAPI usage: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used this month.`;
+      return `✅ WordsAPI usage: ${stats.used}/${stats.limit} requests (${stats.percentage}%) used${sourceIndicator}.`;
     }
   }
 }

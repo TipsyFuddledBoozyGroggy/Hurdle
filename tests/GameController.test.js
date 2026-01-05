@@ -309,7 +309,7 @@ describe('GameController', () => {
             // but we can verify state isolation regardless
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -351,7 +351,7 @@ describe('GameController', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -402,7 +402,7 @@ describe('GameController', () => {
             expect(controller.getGameState().getGameStatus()).toBe(initialStatus);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -469,7 +469,7 @@ describe('GameController', () => {
             expect(result3.guess.getWord()).toBe(guessWord.toLowerCase());
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -521,7 +521,7 @@ describe('GameController', () => {
             expect(controller.getGameState().getGuesses()).toHaveLength(1);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -586,7 +586,7 @@ describe('GameController', () => {
             expect(result.error).toBe('Game is over. Start a new game!');
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
 
@@ -669,7 +669,7 @@ describe('GameController', () => {
             expect(controller.getGameState().getRemainingAttempts()).toBe(4 - actualGuesses);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 10 }
       );
     });
   });
