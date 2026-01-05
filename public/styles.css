@@ -24,7 +24,7 @@ body {
   flex-direction: column;
   gap: 15px;
   min-height: calc(100vh - 20px);
-  justify-content: space-between;
+  justify-content: flex-start;
   touch-action: manipulation;
 }
 
@@ -158,8 +158,14 @@ button:disabled {
 #new-game-btn {
   background-color: #818384;
   align-self: center;
-  margin-top: auto;
+  margin-top: 20px;
   flex-shrink: 0;
+}
+
+/* Move button down when message is present */
+.message-area + #definition-area + #new-game-btn,
+.message-area:not(:empty) ~ #new-game-btn {
+  margin-top: 15px;
 }
 
 #new-game-btn:hover {

@@ -259,9 +259,6 @@ export default {
       
       console.log('Game state before submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
-      // Show loading message while validating word
-      showMessage('Validating word...', 'info');
-      
       const result = await props.gameController.submitGuess(input);
       console.log('Submission result:', result);
       
@@ -291,7 +288,6 @@ export default {
       } else if (result.gameStatus === 'lost') {
         showGameOver(false);
       } else {
-        // Clear the validating message for successful guesses
         showMessage('', '');
         console.log('Game continues, next guess ready');
       }
