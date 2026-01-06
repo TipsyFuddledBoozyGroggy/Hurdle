@@ -1,5 +1,5 @@
 /**
- * GameController module for Hard Wordle
+ * GameController module for Hurdle
  * Orchestrates game flow and enforces game rules
  */
 
@@ -7,6 +7,7 @@
 const GameState = require('./GameState');
 const FeedbackGenerator = require('./FeedbackGenerator');
 const Guess = require('./Guess');
+const HardModeValidator = require('./HardModeValidator');
 
 /**
  * GuessResult type definition
@@ -25,24 +26,35 @@ class GameController {
   /**
    * Create a GameController instance
    * @param {Dictionary} dictionary - The Dictionary instance for word validation
+   * @param {boolean} hardMode - Whether hard mode is enabled (default: false)
    */
-  constructor(dictionary) {
+  constructor(dictionary, hardMode = false) {
     if (!dictionary) {
       throw new Error('Dictionary is required');
     }
     
     this.dictionary = dictionary;
     this.gameState = null;
+    this.hardMode = hardMode;
+    this.hardModeValidator = hardMode ? new HardModeValidator() : null;
   }
 
   /**
    * Start a new game
    * Selects a random target word and initializes game state
+   * @param {number} maxGuesses - Maximum number of guesses allowed (default: 4)
+   * @param {Object} frequencyRange - Optional frequency range for word selection
    * @returns {Promise<GameState>} The new game state
    */
-  async startNewGame() {
-    const targetWord = await this.dictionary.getRandomWord();
-    this.gameState = new GameState(targetWord, 4);
+  async startNewGame(maxGuesses = 4, frequencyRange = null) {
+    const targetWord = await this.dictionary.getRandomWord(frequencyRange);
+    this.gameState = new GameState(targetWord, maxGuesses);
+    
+    // Reset hard mode validator if enabled
+    if (this.hardModeValidator) {
+      this.hardModeValidator.reset();
+    }
+    
     return this.gameState;
   }
 
@@ -113,6 +125,18 @@ class GameController {
       };
     }
 
+    // Validate against hard mode rules if enabled
+    if (this.hardModeValidator) {
+      const hardModeValidation = this.hardModeValidator.validateGuess(normalizedWord);
+      if (!hardModeValidation.isValid) {
+        return {
+          success: false,
+          error: hardModeValidation.error,
+          gameStatus: this.gameState.getGameStatus()
+        };
+      }
+    }
+
     // Generate feedback for the guess
     const feedback = FeedbackGenerator.generateFeedback(
       normalizedWord,
@@ -121,6 +145,11 @@ class GameController {
 
     // Create Guess object
     const guess = new Guess(normalizedWord, feedback);
+
+    // Update hard mode validator with the feedback if enabled
+    if (this.hardModeValidator) {
+      this.hardModeValidator.updateFromFeedback(normalizedWord, feedback);
+    }
 
     // Add guess to game state (this will update game status if needed)
     this.gameState.addGuess(guess);

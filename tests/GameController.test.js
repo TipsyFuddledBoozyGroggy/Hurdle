@@ -1,35 +1,41 @@
 /**
- * Tests for GameController class
+ * Tests for GameController class through HurdleController (Hurdle Mode Only)
  */
 
-const GameController = require('../src/GameController');
+const HurdleController = require('../src/HurdleController');
 const Dictionary = require('../src/Dictionary');
 
-describe('GameController', () => {
+describe('GameController (via HurdleController)', () => {
   let dictionary;
+  let hurdleController;
   let gameController;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Create a dictionary with test words
     const testWords = ['apple', 'bread', 'crane', 'delta', 'eagle'];
     dictionary = new Dictionary(testWords);
-    gameController = new GameController(dictionary);
+    hurdleController = new HurdleController(dictionary);
+    
+    // Start hurdle mode to get the game controller
+    await hurdleController.startHurdleMode();
+    gameController = hurdleController.getCurrentGameController();
   });
 
   describe('constructor', () => {
-    test('should create a GameController with a dictionary', () => {
+    test('should create a HurdleController with a dictionary', () => {
+      expect(hurdleController).toBeDefined();
+      expect(hurdleController.dictionary).toBe(dictionary);
       expect(gameController).toBeDefined();
-      expect(gameController.dictionary).toBe(dictionary);
     });
 
     test('should throw error if dictionary is not provided', () => {
-      expect(() => new GameController()).toThrow('Dictionary is required');
+      expect(() => new HurdleController()).toThrow('Dictionary is required');
     });
   });
 
-  describe('startNewGame', () => {
-    test('should start a new game with a valid target word', async () => {
-      const gameState = await gameController.startNewGame();
+  describe('hurdle initialization', () => {
+    test('should start hurdle mode with a valid target word', async () => {
+      const gameState = gameController.getGameState();
       
       expect(gameState).toBeDefined();
       expect(gameState.getTargetWord()).toHaveLength(5);
@@ -39,28 +45,27 @@ describe('GameController', () => {
       expect(gameState.getGameStatus()).toBe('in-progress');
     });
 
-    test('should reset game state when starting a new game', async () => {
-      // Start first game and make a guess
-      await gameController.startNewGame();
+    test('should reset hurdle session when starting new hurdle mode', async () => {
+      // Make a guess in current hurdle
       await gameController.submitGuess('apple');
       
-      // Start new game
-      const newGameState = await gameController.startNewGame();
+      // Start new hurdle session
+      await hurdleController.startHurdleMode();
+      const newGameController = hurdleController.getCurrentGameController();
+      const newGameState = newGameController.getGameState();
       
       expect(newGameState.getGuesses()).toHaveLength(0);
       expect(newGameState.getRemainingAttempts()).toBe(4);
       expect(newGameState.getGameStatus()).toBe('in-progress');
+      expect(hurdleController.getHurdleState().getCurrentHurdleNumber()).toBe(1);
+      expect(hurdleController.getHurdleState().getCompletedHurdlesCount()).toBe(0);
     });
   });
 
   describe('submitGuess', () => {
-    beforeEach(async () => {
-      await gameController.startNewGame();
-    });
-
-    test('should reject guess if no game has been started', async () => {
-      const controller = new GameController(dictionary);
-      const result = await controller.submitGuess('apple');
+    test('should reject guess if no hurdle session has been started', async () => {
+      const newHurdleController = new HurdleController(dictionary);
+      const result = await newHurdleController.getCurrentGameController()?.submitGuess('apple') || { success: false, error: 'No game in progress. Start a new game first.' };
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('No game in progress. Start a new game first.');
@@ -99,9 +104,6 @@ describe('GameController', () => {
     });
 
     test('should normalize case when submitting guess', async () => {
-      // Start a new game to ensure clean state
-      await gameController.startNewGame();
-      
       // Get the target word to avoid accidentally winning
       const targetWord = gameController.getGameState().getTargetWord();
       
@@ -121,29 +123,31 @@ describe('GameController', () => {
       expect(result2.guess.getWord()).toBe(mixedCaseWord.toLowerCase());
     });
 
-    test('should reject guess when game is already over', async () => {
-      // Set up a game where we know the target
+    test('should reject guess when hurdle is already completed', async () => {
+      // Set up a hurdle where we know the target
       const testDict = new Dictionary(['apple']);
-      const testController = new GameController(testDict);
-      await testController.startNewGame();
+      const testHurdleController = new HurdleController(testDict);
+      await testHurdleController.startHurdleMode();
+      const testGameController = testHurdleController.getCurrentGameController();
       
-      // Win the game
-      await testController.submitGuess('apple');
+      // Win the hurdle
+      await testGameController.submitGuess('apple');
       
       // Try to submit another guess
-      const result = await testController.submitGuess('apple');
+      const result = await testGameController.submitGuess('apple');
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Game is over. Start a new game!');
     });
 
-    test('should update game status to won when correct word is guessed', async () => {
-      // Set up a game where we know the target
+    test('should update hurdle status to won when correct word is guessed', async () => {
+      // Set up a hurdle where we know the target
       const testDict = new Dictionary(['apple']);
-      const testController = new GameController(testDict);
-      await testController.startNewGame();
+      const testHurdleController = new HurdleController(testDict);
+      await testHurdleController.startHurdleMode();
+      const testGameController = testHurdleController.getCurrentGameController();
       
-      const result = await testController.submitGuess('apple');
+      const result = await testGameController.submitGuess('apple');
       
       expect(result.success).toBe(true);
       expect(result.gameStatus).toBe('won');
@@ -180,39 +184,36 @@ describe('GameController', () => {
     });
 
     test('should reject duplicate guess regardless of case', async () => {
-      // Set up a game where we know the target word is not 'apple'
-      const testDict = new Dictionary(['apple', 'bread', 'crane', 'delta', 'eagle']);
-      const testController = new GameController(testDict);
-      await testController.startNewGame();
+      // Get the target word to ensure it's not 'apple'
+      const gameState = gameController.getGameState();
+      const targetWord = gameState.getTargetWord();
       
-      // Ensure the target word is not 'apple' by setting it manually
-      // This is a test-specific approach to avoid random failures
-      const gameState = testController.getGameState();
-      if (gameState.getTargetWord() === 'apple') {
-        // If randomly selected 'apple', restart until we get a different word
+      // If target is 'apple', start a new hurdle session until we get a different word
+      if (targetWord === 'apple') {
         let attempts = 0;
         while (gameState.getTargetWord() === 'apple' && attempts < 10) {
-          await testController.startNewGame();
+          await hurdleController.startHurdleMode();
+          gameController = hurdleController.getCurrentGameController();
           attempts++;
         }
       }
       
       // Make first guess in lowercase
-      const result1 = await testController.submitGuess('apple');
+      const result1 = await gameController.submitGuess('apple');
       expect(result1.success).toBe(true);
       
       // Try to make the same guess in uppercase
-      const result2 = await testController.submitGuess('APPLE');
+      const result2 = await gameController.submitGuess('APPLE');
       expect(result2.success).toBe(false);
       expect(result2.error).toBe('You have already guessed this word');
       
       // Try mixed case
-      const result3 = await testController.submitGuess('ApPlE');
+      const result3 = await gameController.submitGuess('ApPlE');
       expect(result3.success).toBe(false);
       expect(result3.error).toBe('You have already guessed this word');
       
       // Should still only have one guess in the game state
-      expect(testController.getGameState().getGuesses()).toHaveLength(1);
+      expect(gameController.getGameState().getGuesses()).toHaveLength(1);
     });
 
     test('should allow different words after a guess', async () => {
@@ -230,18 +231,19 @@ describe('GameController', () => {
   });
 
   describe('getGameState', () => {
-    test('should return null if no game has been started', () => {
-      expect(gameController.getGameState()).toBeNull();
+    test('should return null if no hurdle session has been started', () => {
+      const newHurdleController = new HurdleController(dictionary);
+      expect(newHurdleController.getCurrentGameController()).toBeNull();
     });
 
-    test('should return current game state after game starts', async () => {
-      const gameState = await gameController.startNewGame();
+    test('should return current game state after hurdle starts', async () => {
+      const gameState = gameController.getGameState();
       
-      expect(gameController.getGameState()).toBe(gameState);
+      expect(gameState).toBeDefined();
+      expect(gameState).toBe(gameController.getGameState());
     });
 
     test('should return updated game state after guesses', async () => {
-      await gameController.startNewGame();
       await gameController.submitGuess('apple');
       
       const gameState = gameController.getGameState();
@@ -253,13 +255,13 @@ describe('GameController', () => {
     const fc = require('fast-check');
 
     /**
-     * Feature: hard-wordle, Property 3: State isolation between games
+     * Feature: hurdle-mode, Property 3: State isolation between hurdle sessions
      * Validates: Requirements 1.4
      * 
-     * For any game state with previous guesses, starting a new game must result 
+     * For any hurdle session with previous guesses, starting a new session must result 
      * in a fresh state with no previous guesses and a different target word.
      */
-    test('Property 3: State isolation between games - new games have fresh state', async () => {
+    test('Property 3: State isolation between hurdle sessions - new sessions have fresh state', async () => {
       await fc.assert(
         fc.asyncProperty(
           // Generate array of valid dictionary words for testing
@@ -267,46 +269,49 @@ describe('GameController', () => {
             fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'), { minLength: 5, maxLength: 5 }),
             { minLength: 10, maxLength: 20 }
           ),
-          // Generate number of guesses to make in first game (1-5)
+          // Generate number of guesses to make in first session (1-5)
           fc.integer({ min: 1, max: 5 }),
           async (words, numGuesses) => {
             fc.pre(words.length >= 10);
             
             const testDict = new Dictionary(words);
-            const controller = new GameController(testDict);
+            const controller = new HurdleController(testDict);
             
-            // Start first game and make some guesses
-            const firstGameState = await controller.startNewGame();
-            const firstTargetWord = firstGameState.getTargetWord();
+            // Start first hurdle session and make some guesses
+            await controller.startHurdleMode();
+            const firstGameController = controller.getCurrentGameController();
+            const firstTargetWord = firstGameController.getGameState().getTargetWord();
             
             for (let i = 0; i < numGuesses && i < words.length; i++) {
-              // Make sure we don't win the game
-              if (words[i] !== firstTargetWord && controller.getGameState().getGameStatus() === 'in-progress') {
-                await controller.submitGuess(words[i]);
+              // Make sure we don't win the hurdle
+              if (words[i] !== firstTargetWord && firstGameController.getGameState().getGameStatus() === 'in-progress') {
+                await firstGameController.submitGuess(words[i]);
               }
             }
             
-            const firstGameGuessCount = controller.getGameState().getGuesses().length;
+            const firstSessionGuessCount = firstGameController.getGameState().getGuesses().length;
             
-            // Start a new game
-            const secondGameState = await controller.startNewGame();
-            const secondTargetWord = secondGameState.getTargetWord();
+            // Start a new hurdle session
+            await controller.startHurdleMode();
+            const secondGameController = controller.getCurrentGameController();
+            const secondGameState = secondGameController.getGameState();
             
-            // New game must have zero guesses
+            // New session must have zero guesses
             expect(secondGameState.getGuesses()).toHaveLength(0);
             
-            // New game must have full attempts
+            // New session must have full attempts
             expect(secondGameState.getRemainingAttempts()).toBe(4);
             
-            // New game must be in-progress
+            // New session must be in-progress
             expect(secondGameState.getGameStatus()).toBe('in-progress');
             
             // Target word should be valid (5 letters and in dictionary)
-            expect(secondTargetWord).toHaveLength(5);
-            expect(testDict.isValidWordSync(secondTargetWord)).toBe(true);
+            expect(secondGameState.getTargetWord()).toHaveLength(5);
+            expect(testDict.isValidWordSync(secondGameState.getTargetWord())).toBe(true);
             
-            // Note: We can't guarantee different target words due to randomness,
-            // but we can verify state isolation regardless
+            // Hurdle state should be reset
+            expect(controller.getHurdleState().getCurrentHurdleNumber()).toBe(1);
+            expect(controller.getHurdleState().getCompletedHurdlesCount()).toBe(0);
           }
         ),
         { numRuns: 10 }
@@ -314,7 +319,7 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 4: Length validation
+     * Feature: hurdle-mode, Property 4: Length validation
      * Validates: Requirements 2.1
      * 
      * For any string input, the system must accept it as a valid guess 
@@ -327,10 +332,11 @@ describe('GameController', () => {
           fc.string({ minLength: 0, maxLength: 10 }),
           async (input) => {
             const testDict = new Dictionary(['apple', 'bread', 'crane', 'delta', 'eagle']);
-            const controller = new GameController(testDict);
-            await controller.startNewGame();
+            const controller = new HurdleController(testDict);
+            await controller.startHurdleMode();
+            const gameController = controller.getCurrentGameController();
             
-            const result = await controller.submitGuess(input);
+            const result = await gameController.submitGuess(input);
             
             // If the input is not exactly 5 letters, it must be rejected
             if (input.length !== 5) {
@@ -338,8 +344,8 @@ describe('GameController', () => {
               expect(result.error).toBe('Word must be exactly 5 letters');
               
               // Game state should not change
-              expect(controller.getGameState().getGuesses()).toHaveLength(0);
-              expect(controller.getGameState().getRemainingAttempts()).toBe(4);
+              expect(gameController.getGameState().getGuesses()).toHaveLength(0);
+              expect(gameController.getGameState().getRemainingAttempts()).toBe(4);
             }
             // If it is 5 letters, validation depends on dictionary
             else {
@@ -356,7 +362,7 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 6: Invalid guess preservation
+     * Feature: hurdle-mode, Property 6: Invalid guess preservation
      * Validates: Requirements 2.3
      * 
      * For any invalid guess (wrong length or not in dictionary), submitting it 
@@ -382,24 +388,29 @@ describe('GameController', () => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
-            const controller = new GameController(testDict);
-            await controller.startNewGame();
+            const controller = new HurdleController(testDict);
+            await controller.startHurdleMode();
+            const gameController = controller.getCurrentGameController();
             
             // Record initial state
-            const initialGuessCount = controller.getGameState().getGuesses().length;
-            const initialRemainingAttempts = controller.getGameState().getRemainingAttempts();
-            const initialStatus = controller.getGameState().getGameStatus();
+            const initialGuessCount = gameController.getGameState().getGuesses().length;
+            const initialRemainingAttempts = gameController.getGameState().getRemainingAttempts();
+            const initialStatus = gameController.getGameState().getGameStatus();
+            const initialHurdleNumber = controller.getHurdleState().getCurrentHurdleNumber();
+            const initialCompletedCount = controller.getHurdleState().getCompletedHurdlesCount();
             
             // Submit invalid guess
-            const result = await controller.submitGuess(invalidGuess);
+            const result = await gameController.submitGuess(invalidGuess);
             
             // Verify it was rejected
             expect(result.success).toBe(false);
             
             // Verify game state unchanged
-            expect(controller.getGameState().getGuesses()).toHaveLength(initialGuessCount);
-            expect(controller.getGameState().getRemainingAttempts()).toBe(initialRemainingAttempts);
-            expect(controller.getGameState().getGameStatus()).toBe(initialStatus);
+            expect(gameController.getGameState().getGuesses()).toHaveLength(initialGuessCount);
+            expect(gameController.getGameState().getRemainingAttempts()).toBe(initialRemainingAttempts);
+            expect(gameController.getGameState().getGameStatus()).toBe(initialStatus);
+            expect(controller.getHurdleState().getCurrentHurdleNumber()).toBe(initialHurdleNumber);
+            expect(controller.getHurdleState().getCompletedHurdlesCount()).toBe(initialCompletedCount);
           }
         ),
         { numRuns: 10 }
@@ -407,7 +418,7 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 8: Case normalization
+     * Feature: hurdle-mode, Property 8: Case normalization
      * Validates: Requirements 2.5
      * 
      * For any valid word, submitting it in different cases (uppercase, lowercase, mixed) 
@@ -429,26 +440,32 @@ describe('GameController', () => {
             // Pick a word from the dictionary to use as guess
             const guessWord = words[Math.floor(Math.random() * words.length)];
             
-            // Create three controllers with the same target word
+            // Create three hurdle controllers with the same target word
             const targetWord = words[0];
             
             // Test lowercase
-            const controller1 = new GameController(testDict);
-            controller1.gameState = new (require('../src/GameState'))(targetWord, 4);
-            const result1 = await controller1.submitGuess(guessWord.toLowerCase());
+            const controller1 = new HurdleController(testDict);
+            await controller1.startHurdleMode();
+            const gameController1 = controller1.getCurrentGameController();
+            gameController1.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result1 = await gameController1.submitGuess(guessWord.toLowerCase());
             
             // Test uppercase
-            const controller2 = new GameController(testDict);
-            controller2.gameState = new (require('../src/GameState'))(targetWord, 4);
-            const result2 = await controller2.submitGuess(guessWord.toUpperCase());
+            const controller2 = new HurdleController(testDict);
+            await controller2.startHurdleMode();
+            const gameController2 = controller2.getCurrentGameController();
+            gameController2.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result2 = await gameController2.submitGuess(guessWord.toUpperCase());
             
             // Test mixed case
             const mixedCase = guessWord.split('').map((c, i) => 
               i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()
             ).join('');
-            const controller3 = new GameController(testDict);
-            controller3.gameState = new (require('../src/GameState'))(targetWord, 4);
-            const result3 = await controller3.submitGuess(mixedCase);
+            const controller3 = new HurdleController(testDict);
+            await controller3.startHurdleMode();
+            const gameController3 = controller3.getCurrentGameController();
+            gameController3.gameState = new (require('../src/GameState'))(targetWord, 4);
+            const result3 = await gameController3.submitGuess(mixedCase);
             
             // All should succeed
             expect(result1.success).toBe(true);
@@ -474,13 +491,13 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 12: Win condition
+     * Feature: hurdle-mode, Property 12: Win condition
      * Validates: Requirements 5.1
      * 
-     * For any game state where a guess exactly matches the target word, 
-     * the game status must be 'won' and no further guesses must be accepted.
+     * For any hurdle state where a guess exactly matches the target word, 
+     * the hurdle status must be 'won' and no further guesses must be accepted.
      */
-    test('Property 12: Win condition - matching target word wins the game', async () => {
+    test('Property 12: Win condition - matching target word wins the hurdle', async () => {
       await fc.assert(
         fc.asyncProperty(
           // Generate a dictionary
@@ -492,33 +509,35 @@ describe('GameController', () => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
-            const controller = new GameController(testDict);
+            const controller = new HurdleController(testDict);
             
-            // Start a game
-            const gameState = await controller.startNewGame();
+            // Start a hurdle session
+            await controller.startHurdleMode();
+            const gameController = controller.getCurrentGameController();
+            const gameState = gameController.getGameState();
             const targetWord = gameState.getTargetWord();
             
             // Submit the target word as a guess
-            const result = await controller.submitGuess(targetWord);
+            const result = await gameController.submitGuess(targetWord);
             
             // The guess must succeed
             expect(result.success).toBe(true);
             
-            // The game status must be 'won'
+            // The hurdle status must be 'won'
             expect(result.gameStatus).toBe('won');
-            expect(controller.getGameState().getGameStatus()).toBe('won');
-            expect(controller.getGameState().isGameOver()).toBe(true);
+            expect(gameController.getGameState().getGameStatus()).toBe('won');
+            expect(gameController.getGameState().isGameOver()).toBe(true);
             
             // Try to submit another guess
             const anotherWord = words.find(w => w !== targetWord) || 'apple';
-            const result2 = await controller.submitGuess(anotherWord);
+            const result2 = await gameController.submitGuess(anotherWord);
             
             // The second guess must be rejected
             expect(result2.success).toBe(false);
             expect(result2.error).toBe('Game is over. Start a new game!');
             
             // Game state should still have only one guess
-            expect(controller.getGameState().getGuesses()).toHaveLength(1);
+            expect(gameController.getGameState().getGuesses()).toHaveLength(1);
           }
         ),
         { numRuns: 10 }
@@ -526,13 +545,13 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 13: Loss condition
+     * Feature: hurdle-mode, Property 13: Loss condition
      * Validates: Requirements 5.2
      * 
-     * For any game state where six guesses have been made without matching 
-     * the target word, the game status must be 'lost'.
+     * For any hurdle state where four guesses have been made without matching 
+     * the target word, the hurdle status must be 'lost'.
      */
-    test('Property 13: Loss condition - four wrong guesses loses the game', async () => {
+    test('Property 13: Loss condition - four wrong guesses loses the hurdle', async () => {
       await fc.assert(
         fc.asyncProperty(
           // Generate a dictionary with at least 5 words
@@ -544,10 +563,12 @@ describe('GameController', () => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
-            const controller = new GameController(testDict);
+            const controller = new HurdleController(testDict);
             
-            // Start a game
-            const gameState = await controller.startNewGame();
+            // Start a hurdle session
+            await controller.startHurdleMode();
+            const gameController = controller.getCurrentGameController();
+            const gameState = gameController.getGameState();
             const targetWord = gameState.getTargetWord();
             
             // Get 4 words that are not the target
@@ -559,29 +580,29 @@ describe('GameController', () => {
             
             // Submit 4 wrong guesses (ensuring no duplicates)
             for (let i = 0; i < 4; i++) {
-              const result = await controller.submitGuess(uniqueWrongWords[i]);
+              const result = await gameController.submitGuess(uniqueWrongWords[i]);
               
               // Each guess should succeed (valid word and not duplicate)
               expect(result.success).toBe(true);
               
               // Check status after each guess
               if (i < 3) {
-                // Game should still be in progress
+                // Hurdle should still be in progress
                 expect(result.gameStatus).toBe('in-progress');
               } else {
-                // After 4th guess, game should be lost
+                // After 4th guess, hurdle should be lost
                 expect(result.gameStatus).toBe('lost');
               }
             }
             
             // Final verification
-            expect(controller.getGameState().getGameStatus()).toBe('lost');
-            expect(controller.getGameState().isGameOver()).toBe(true);
-            expect(controller.getGameState().getGuesses()).toHaveLength(4);
-            expect(controller.getGameState().getRemainingAttempts()).toBe(0);
+            expect(gameController.getGameState().getGameStatus()).toBe('lost');
+            expect(gameController.getGameState().isGameOver()).toBe(true);
+            expect(gameController.getGameState().getGuesses()).toHaveLength(4);
+            expect(gameController.getGameState().getRemainingAttempts()).toBe(0);
             
             // Try to submit another guess
-            const result = await controller.submitGuess(wrongWords[0]);
+            const result = await gameController.submitGuess(wrongWords[0]);
             expect(result.success).toBe(false);
             expect(result.error).toBe('Game is over. Start a new game!');
           }
@@ -591,13 +612,13 @@ describe('GameController', () => {
     });
 
     /**
-     * Feature: hard-wordle, Property 14: Game status accuracy
+     * Feature: hurdle-mode, Property 14: Game status accuracy
      * Validates: Requirements 5.3
      * 
-     * For any game state, the game status must accurately reflect whether 
-     * the game is 'in-progress', 'won', or 'lost' based on the guesses and target word.
+     * For any hurdle state, the hurdle status must accurately reflect whether 
+     * the hurdle is 'in-progress', 'won', or 'lost' based on the guesses and target word.
      */
-    test('Property 14: Game status accuracy - status reflects game state correctly', async () => {
+    test('Property 14: Game status accuracy - status reflects hurdle state correctly', async () => {
       await fc.assert(
         fc.asyncProperty(
           // Generate a dictionary
@@ -607,37 +628,39 @@ describe('GameController', () => {
           ),
           // Generate number of guesses to make (0-4)
           fc.integer({ min: 0, max: 4 }),
-          // Generate whether to win the game
+          // Generate whether to win the hurdle
           fc.boolean(),
           async (words, numGuesses, shouldWin) => {
             fc.pre(words.length >= 5);
             
             const testDict = new Dictionary(words);
-            const controller = new GameController(testDict);
+            const controller = new HurdleController(testDict);
             
-            // Start a game
-            const gameState = await controller.startNewGame();
+            // Start a hurdle session
+            await controller.startHurdleMode();
+            const gameController = controller.getCurrentGameController();
+            const gameState = gameController.getGameState();
             const targetWord = gameState.getTargetWord();
             
             // Get words for guessing
             const wrongWords = words.filter(w => w !== targetWord);
             
             let actualGuesses = 0;
-            let wonGame = false;
+            let wonHurdle = false;
             const usedWords = new Set();
             
             // Make guesses (avoiding duplicates)
             for (let i = 0; i < numGuesses && actualGuesses < 4; i++) {
               if (shouldWin && i === numGuesses - 1) {
                 // Win on the last guess
-                await controller.submitGuess(targetWord);
-                wonGame = true;
+                await gameController.submitGuess(targetWord);
+                wonHurdle = true;
                 actualGuesses++;
                 break;
               } else if (wrongWords[i] && !usedWords.has(wrongWords[i])) {
                 // Make a wrong guess (avoiding duplicates)
                 const word = wrongWords[i];
-                const result = await controller.submitGuess(word);
+                const result = await gameController.submitGuess(word);
                 if (result.success) {
                   usedWords.add(word);
                   actualGuesses++;
@@ -646,27 +669,27 @@ describe('GameController', () => {
             }
             
             // Verify status accuracy
-            const finalStatus = controller.getGameState().getGameStatus();
+            const finalStatus = gameController.getGameState().getGameStatus();
             
-            if (wonGame) {
+            if (wonHurdle) {
               // If we guessed the target word, status must be 'won'
               expect(finalStatus).toBe('won');
-              expect(controller.getGameState().isGameOver()).toBe(true);
+              expect(gameController.getGameState().isGameOver()).toBe(true);
             } else if (actualGuesses >= 4) {
               // If we made 4 guesses without winning, status must be 'lost'
               expect(finalStatus).toBe('lost');
-              expect(controller.getGameState().isGameOver()).toBe(true);
+              expect(gameController.getGameState().isGameOver()).toBe(true);
             } else {
               // Otherwise, status must be 'in-progress'
               expect(finalStatus).toBe('in-progress');
-              expect(controller.getGameState().isGameOver()).toBe(false);
+              expect(gameController.getGameState().isGameOver()).toBe(false);
             }
             
             // Verify guess count matches
-            expect(controller.getGameState().getGuesses()).toHaveLength(actualGuesses);
+            expect(gameController.getGameState().getGuesses()).toHaveLength(actualGuesses);
             
             // Verify remaining attempts
-            expect(controller.getGameState().getRemainingAttempts()).toBe(4 - actualGuesses);
+            expect(gameController.getGameState().getRemainingAttempts()).toBe(4 - actualGuesses);
           }
         ),
         { numRuns: 10 }

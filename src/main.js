@@ -1,4 +1,4 @@
-// Hard Wordle - Main Entry Point (Vue 3)
+// Hurdle - Main Entry Point (Vue 3)
 import { createApp } from 'vue';
 import App from './App.vue';
 
@@ -7,12 +7,12 @@ const Dictionary = require('./Dictionary');
 const GameController = require('./GameController');
 
 /**
- * Initialize the Hard Wordle application
+ * Initialize the Hurdle application
  * Loads the word dictionary and sets up the game
  */
 async function initializeApp() {
   try {
-    console.log('Hard Wordle - Loading dictionary...');
+    console.log('Hurdle - Loading dictionary...');
     
     // Detect environment
     const isProduction = detectProductionEnvironment();
@@ -47,23 +47,24 @@ async function initializeApp() {
     
     console.log(`Dictionary loaded: ${data.words.length} words`);
     
-    // Initialize Dictionary instance
+    // Initialize Dictionary instance - always available
     const dictionary = new Dictionary(data.words);
     
-    // Initialize GameController with Dictionary
+    // Initialize GameController with Dictionary - used by HurdleController
     const gameController = new GameController(dictionary);
     
-    // Create and mount Vue app
+    // Create and mount Vue app with hurdle components
     const app = createApp(App, {
-      gameController
+      gameController,
+      dictionary
     });
     
     app.mount('#app');
     
-    console.log('Hard Wordle - Ready to play!');
+    console.log('Hurdle - Ready to play!');
     
   } catch (error) {
-    console.error('Failed to initialize application:', error);
+    console.error('Failed to initialize hurdle application:', error);
     
     // Display user-friendly error message
     const appElement = document.getElementById('app');
@@ -71,7 +72,7 @@ async function initializeApp() {
       appElement.innerHTML = `
         <div id="game-container">
           <div class="message-area error">
-            Failed to load game: ${error.message}. Please refresh the page to try again.
+            Failed to load hurdle game: ${error.message}. Please refresh the page to try again.
           </div>
         </div>
       `;
@@ -97,16 +98,18 @@ async function loadMainDictionary() {
   
   console.log(`Main dictionary loaded: ${data.words.length} words`);
   
+  // Initialize Dictionary and GameController
   const dictionary = new Dictionary(data.words);
   const gameController = new GameController(dictionary);
   
   const app = createApp(App, {
-    gameController
+    gameController,
+    dictionary
   });
   
   app.mount('#app');
   
-  console.log('Hard Wordle - Ready to play!');
+  console.log('Hurdle - Ready to play!');
 }
 
 /**

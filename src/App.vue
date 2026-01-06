@@ -1,7 +1,28 @@
 <template>
   <div id="game-container">
     <header>
-      <h1>Hurdle</h1>
+      <div class="header-top">
+        <button 
+          @click="showConfigPage = true" 
+          class="config-btn" 
+          :class="{ disabled: isGameActive }"
+          :disabled="isGameActive"
+          :title="isGameActive ? 'Settings disabled during gameplay' : 'Settings'"
+        >
+          ⚙️
+        </button>
+        <h1>Hurdle</h1>
+        <div class="header-spacer"></div>
+      </div>
+      <!-- Progress Display -->
+      <div class="hurdle-progress">
+        <div class="hurdle-info">
+          <span class="hurdle-number">Hurdle {{ hurdleNumber }}</span>
+          <span class="completed-count">Completed: {{ completedHurdlesCount }}</span>
+          <span class="current-score">Score: {{ totalScore }}</span>
+          <span v-if="gameConfig.getHardMode()" class="hard-mode-indicator">HARD MODE</span>
+        </div>
+      </div>
     </header>
     
     <div id="game-board">
@@ -37,7 +58,14 @@
       {{ message }}
     </div>
     
-    <div v-if="definition" id="definition-area">
+    <!-- Hurdle Score Display -->
+    <div v-if="lastHurdleScore > 0" class="hurdle-score-display">
+      <div class="score-notification">
+        +{{ lastHurdleScore }} points for Hurdle {{ lastCompletedHurdleNumber }}!
+      </div>
+    </div>
+    
+    <div v-if="definition && gameConfig.getShowDefinitions() && configVersion >= 0" id="definition-area">
       <div class="word-title">{{ definition.word }}</div>
       <div v-for="(def, index) in definition.definitions" :key="index" class="definition-item">
         <div class="definition-text">
@@ -46,22 +74,93 @@
       </div>
     </div>
     
-    <button @click="handleNewGame" id="new-game-btn">New Game</button>
+    <button @click="handleNewGame" id="new-game-btn">
+      New Game
+    </button>
+    
+    <!-- Game End Summary -->
+    <div v-if="hurdleGameEnded" class="hurdle-end-summary">
+      <h3>Game Complete!</h3>
+      <div class="summary-stats">
+        <div class="stat">
+          <span class="stat-label">Hurdles Completed:</span>
+          <span class="stat-value">{{ completedHurdlesCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Final Score:</span>
+          <span class="stat-value">{{ totalScore }}</span>
+        </div>
+      </div>
+      
+      <!-- Solved Words Access (Requirement 8.3) -->
+      <div v-if="solvedWords.length > 0" class="solved-words-section">
+        <h4>Words You Solved:</h4>
+        <div class="solved-words-list">
+          <button 
+            v-for="word in solvedWords" 
+            :key="word"
+            @click="viewWordDefinition(word)"
+            class="solved-word-btn"
+            :class="{ active: selectedWordForDefinition === word }"
+          >
+            {{ word.toUpperCase() }}
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Word Definition Viewer for Solved Words -->
+    <div v-if="selectedWordDefinition" class="word-definition-viewer">
+      <div class="definition-header">
+        <h4>{{ selectedWordDefinition.word.toUpperCase() }}</h4>
+        <button @click="closeWordDefinition" class="close-definition-btn">×</button>
+      </div>
+      <div class="definition-content">
+        <div v-for="(def, index) in selectedWordDefinition.definitions" :key="index" class="definition-item">
+          <div class="definition-text">
+            <em>{{ def.partOfSpeech }}</em> - {{ def.text }}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Configuration Page -->
+    <ConfigPage 
+      v-if="showConfigPage"
+      :gameActive="isGameActive"
+      @close="showConfigPage = false"
+      @configChanged="handleConfigChange"
+    />
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import FeedbackGenerator from './FeedbackGenerator.js';
+import GameConfig from './GameConfig.js';
+import ConfigPage from './ConfigPage.vue';
 
 export default {
   name: 'App',
+  components: {
+    ConfigPage
+  },
   props: {
     gameController: {
+      type: Object,
+      required: true
+    },
+    dictionary: {
       type: Object,
       required: true
     }
   },
   setup(props) {
+    const gameConfig = new GameConfig();
+    const showConfigPage = ref(false);
+    const configVersion = ref(0); // Force reactivity for config changes
+    const maxGuesses = ref(gameConfig.getMaxGuesses()); // Reactive max guesses
+    
     const currentGuess = ref('');
     const message = ref('');
     const messageType = ref('');
@@ -70,6 +169,21 @@ export default {
     const isInitialized = ref(false);
     const gameStateVersion = ref(0); // Force reactivity trigger
     const animatingRowIndex = ref(-1); // Track which row is currently animating
+
+    // Game State
+    const hurdleController = ref(null);
+    const hurdleNumber = ref(1);
+    const completedHurdlesCount = ref(0);
+    const totalScore = ref(0);
+    const lastHurdleScore = ref(0);
+    const lastCompletedHurdleNumber = ref(0);
+    const hurdleGameEnded = ref(false);
+    const isTransitioning = ref(false);
+    
+    // Word Definition State (Requirement 8.2, 8.3)
+    const solvedWords = ref([]);
+    const selectedWordForDefinition = ref(null);
+    const selectedWordDefinition = ref(null);
 
     
     const keyboardLayout = [
@@ -85,14 +199,25 @@ export default {
     });
     const isGameOver = computed(() => gameState.value?.isGameOver() || false);
     
+    // Game state tracking
+    const isGameActive = computed(() => {
+      if (!gameState.value) return false;
+      
+      const status = gameState.value.getGameStatus();
+      const hasGuesses = gameState.value.getGuesses().length > 0;
+      
+      // Game is active if it's in progress and has at least one guess
+      return status === 'in-progress' && hasGuesses;
+    });
+    
     const boardRows = computed(() => {
-      console.log('Computing boardRows... currentGuess:', currentGuess.value, 'gameState exists:', !!gameState.value);
+      // Use reactive maxGuesses instead of calling gameConfig.getMaxGuesses()
+      const maxGuessesValue = maxGuesses.value;
       
       if (!gameState.value) {
-        console.log('No gameState, creating empty grid');
         // Create empty grid with current guess in first row if typing
         const rows = [];
-        for (let rowIndex = 0; rowIndex < 4; rowIndex++) {
+        for (let rowIndex = 0; rowIndex < maxGuessesValue; rowIndex++) {
           const row = [];
           for (let colIndex = 0; colIndex < 5; colIndex++) {
             const isCurrentRow = rowIndex === 0;
@@ -110,7 +235,6 @@ export default {
       
       const guesses = gameState.value?.getGuesses() || [];
       const rows = [];
-      console.log('Current guesses:', guesses.length);
       
       // Add completed guess rows with feedback
       guesses.forEach((guess, guessIndex) => {
@@ -122,11 +246,10 @@ export default {
           active: false
         }));
         rows.push(row);
-        console.log(`Added completed guess ${guessIndex + 1}:`, row.map(t => `${t.letter}(${t.status})`).join(' '));
       });
       
       // Add current guess row (if game not over and we haven't used all attempts)
-      if (!isGameOver.value && rows.length < 4) {
+      if (!isGameOver.value && rows.length < maxGuessesValue) {
         const currentRow = [];
         for (let i = 0; i < 5; i++) {
           const hasLetter = i < currentGuess.value.length;
@@ -137,11 +260,10 @@ export default {
           });
         }
         rows.push(currentRow);
-        console.log('Added current guess row:', currentRow.map(t => t.letter || '_').join(''));
       }
       
-      // Fill remaining empty rows
-      while (rows.length < 4) {
+      // Fill remaining empty rows up to maxGuessesValue
+      while (rows.length < maxGuessesValue) {
         const emptyRow = Array(5).fill(null).map(() => ({
           letter: '',
           status: 'empty',
@@ -150,7 +272,6 @@ export default {
         rows.push(emptyRow);
       }
       
-      console.log(`Final board: ${rows.length} rows, ${guesses.length} completed guesses`);
       return rows;
     });
     
@@ -181,17 +302,56 @@ export default {
     const resetKeyboardState = () => {
       keyboardState.value = {};
     };
+
+    const filterInappropriateContent = (definitions) => {
+      // List of inappropriate content patterns to filter out
+      const inappropriatePatterns = [
+        /\(ethnic slur\)/i,
+        /\(racial slur\)/i,
+        /\(offensive\)/i,
+        /\(derogatory\)/i,
+        /\(slur\)/i
+      ];
+      
+      return definitions.filter(def => {
+        // Check if the definition text contains any inappropriate patterns
+        const hasInappropriateContent = inappropriatePatterns.some(pattern => 
+          pattern.test(def.text)
+        );
+        
+        return !hasInappropriateContent;
+      });
+    };
+
+    const updateKeyboardStateForHurdle = (autoGuess, targetWord) => {
+      // Reset keyboard state first
+      resetKeyboardState();
+      
+      // Update keyboard based on the auto-guess feedback
+      if (autoGuess && targetWord) {
+        const feedback = FeedbackGenerator.generateFeedback(autoGuess.toLowerCase(), targetWord.toLowerCase());
+        
+        for (let i = 0; i < autoGuess.length; i++) {
+          const letter = autoGuess[i].toLowerCase();
+          const status = feedback[i].status;
+          
+          // Update keyboard state with the feedback from auto-guess
+          if (!keyboardState.value[letter] || 
+              (keyboardState.value[letter] !== 'correct' && status === 'correct') ||
+              (keyboardState.value[letter] === 'absent' && status === 'present')) {
+            keyboardState.value[letter] = status;
+          }
+        }
+      }
+    };
     
     const handleKeyPress = (key) => {
-      console.log('Key pressed:', key);
       if (!isInitialized.value || isGameOver.value || !props.gameController) return;
       
       if (key === 'ENTER') {
-        console.log('Enter pressed, submitting guess:', currentGuess.value);
         handleGuessSubmit();
       } else if (key === 'BACKSPACE') {
         if (currentGuess.value.length > 0) {
-          console.log('Backspace pressed, removing letter');
           currentGuess.value = currentGuess.value.slice(0, -1);
         }
         // Clear error messages when user starts editing
@@ -199,21 +359,18 @@ export default {
           showMessage('', '');
         }
       } else if (currentGuess.value.length < 5) {
-        console.log('Adding letter:', key);
         currentGuess.value += key;
         // Clear error messages when user starts typing
         if (message.value && messageType.value === 'error') {
           showMessage('', '');
         }
       }
-      console.log('Current guess after key press:', currentGuess.value);
     };
     
     const handleGlobalKeydown = (event) => {
       if (isGameOver.value || !props.gameController) return;
       
       const key = event.key.toUpperCase();
-      console.log('Global key pressed:', key);
       
       if (key === 'ENTER') {
         event.preventDefault();
@@ -243,7 +400,6 @@ export default {
       if (isGameOver.value || !props.gameController) return;
       
       const input = currentGuess.value.trim();
-      console.log('Submitting guess:', input);
       
       showMessage('', '');
       
@@ -257,17 +413,12 @@ export default {
         return;
       }
       
-      console.log('Game state before submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
-      
       const result = await props.gameController.submitGuess(input);
-      console.log('Submission result:', result);
       
       if (!result.success) {
         showMessage(result.error, 'error');
         return;
       }
-      
-      console.log('Game state after submission:', gameState.value ? gameState.value.getGuesses()?.length : 'no game state');
       
       // Force Vue to re-evaluate computed properties
       gameStateVersion.value++;
@@ -280,7 +431,6 @@ export default {
       if (result.guess) {
         await animateTileFlip(result.guess);
         updateKeyboardState(result.guess);
-        console.log('Updated keyboard state for guess');
       }
       
       if (result.gameStatus === 'won') {
@@ -289,7 +439,6 @@ export default {
         showGameOver(false);
       } else {
         showMessage('', '');
-        console.log('Game continues, next guess ready');
       }
     };
     
@@ -300,44 +449,82 @@ export default {
       // Mark this row as animating to prevent status classes from showing
       animatingRowIndex.value = currentRowIndex;
       
-      // Add flip animation to each tile with a delay
-      for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-          const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
-          if (tile) {
-            tile.classList.add('flipping');
-            // Add the status class halfway through the flip (at 90 degrees)
-            setTimeout(() => {
-              tile.classList.add(feedback[i].status);
-            }, 330); // Halfway through the 0.66s animation
-            // Remove flipping class when animation completes
-            setTimeout(() => {
+      // Animation timeout handling
+      const animationTimeout = 3000; // 3 second timeout
+      let animationCompleted = false;
+      
+      // Set up timeout to prevent hanging animations
+      const timeoutId = setTimeout(() => {
+        if (!animationCompleted) {
+          console.warn('Tile flip animation timed out, forcing completion');
+          animatingRowIndex.value = -1;
+          // Force apply status classes immediately
+          const tiles = document.querySelectorAll(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile`);
+          tiles.forEach((tile, index) => {
+            if (tile && feedback[index]) {
               tile.classList.remove('flipping');
-            }, 660); // Full flip animation duration (0.66s)
-          }
-        }, i * 300); // Stagger the animations with 300ms between each tile
+              tile.classList.add(feedback[index].status);
+            }
+          });
+        }
+      }, animationTimeout);
+      
+      try {
+        // Add flip animation to each tile with a delay
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
+            if (tile) {
+              tile.classList.add('flipping');
+              // Add the status class halfway through the flip (at 90 degrees)
+              setTimeout(() => {
+                tile.classList.add(feedback[i].status);
+              }, 330); // Halfway through the 0.66s animation
+              // Remove flipping class when animation completes
+              setTimeout(() => {
+                tile.classList.remove('flipping');
+              }, 660); // Full flip animation duration (0.66s)
+            }
+          }, i * 100); // Reduced stagger to 100ms between each tile for smoother animation
+        }
+        
+        // Wait for all animations to complete properly
+        // Last tile starts at 400ms (4 * 100ms) + 660ms animation = 1060ms total
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        
+        // Clear animating state - no need to force re-render since colors are already applied
+        animatingRowIndex.value = -1;
+        
+      } catch (error) {
+        console.error('Error during tile flip animation:', error);
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        animatingRowIndex.value = -1;
       }
-      
-      // Wait for all animations to complete (last tile starts at 1200ms + 800ms animation = 2000ms)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Clear animating state - no need to force re-render since colors are already applied
-      animatingRowIndex.value = -1;
     };
     
     const showGameOver = async (won) => {
       const targetWord = gameState.value?.getTargetWord()?.toUpperCase() || 'UNKNOWN';
       
       if (won) {
-        showMessage(`Congratulations! You won! The word was ${targetWord}`, 'success');
+        // Handle hurdle completion
+        await handleHurdleCompletion(gameState.value);
       } else {
-        showMessage(`Game Over! The word was ${targetWord}`, 'error');
+        // Handle hurdle failure
+        await handleHurdleFailure();
       }
-      
-      await fetchWordDefinition(targetWord);
     };
     
     const fetchWordDefinition = async (word) => {
+      // Check if definitions should be shown
+      if (!gameConfig.getShowDefinitions()) {
+        definition.value = null;
+        return;
+      }
+      
       try {
         // Check if fetch is available (browser environment)
         if (typeof fetch === 'undefined') {
@@ -398,11 +585,22 @@ export default {
             }));
           
           // If no valid definitions found, show all definitions as fallback
-          const definitions = validDefinitions.length > 0 ? validDefinitions : 
+          let definitions = validDefinitions.length > 0 ? validDefinitions : 
             data.results.map(result => ({
               partOfSpeech: result.partOfSpeech || 'word',
               text: result.definition || 'Definition not available'
             }));
+          
+          // Filter out inappropriate content
+          definitions = filterInappropriateContent(definitions);
+          
+          // If all definitions were filtered out, provide a safe fallback
+          if (definitions.length === 0) {
+            definitions = [{
+              partOfSpeech: 'word',
+              text: 'Definition not available due to content restrictions.'
+            }];
+          }
           
           definition.value = {
             word: word,
@@ -431,8 +629,14 @@ export default {
       }
     };
     
+    const initializeHurdleController = async () => {
+      if (!hurdleController.value && props.dictionary) {
+        const HurdleController = (await import('./HurdleController.js')).default;
+        hurdleController.value = new HurdleController(props.dictionary);
+      }
+    };
+
     const handleNewGame = async () => {
-      console.log('Starting new game...');
       if (!props.gameController) {
         console.error('Game controller not available');
         return;
@@ -441,30 +645,768 @@ export default {
       showMessage('Loading new game...', 'info');
       
       try {
-        await props.gameController.startNewGame();
-        currentGuess.value = '';
-        showMessage('', '');
-        definition.value = null;
-        resetKeyboardState();
-        isInitialized.value = true;
-        animatingRowIndex.value = -1; // Reset animation state
-        gameStateVersion.value++; // Force reactivity update
-        console.log('New game started, gameState:', gameState.value);
+        // Always start the game
+        if (!props.dictionary) {
+          showMessage('Dictionary not available', 'error');
+          return;
+        }
+
+        // Ensure hurdle controller is initialized
+        await initializeHurdleController();
+        
+        await startHurdleMode();
       } catch (error) {
         console.error('Failed to start new game:', error);
         showMessage('Failed to load new game. Please try again.', 'error');
       }
     };
+
+    const startHurdleMode = async () => {
+      if (!hurdleController.value) return;
+      
+      try {
+        // Start hurdle mode session with configuration
+        const maxGuesses = gameConfig.getMaxGuesses();
+        const frequencyRange = gameConfig.getFrequencyRange();
+        const hardMode = gameConfig.getHardMode();
+        const session = await hurdleController.value.startHurdleMode(maxGuesses, frequencyRange, hardMode);
+        
+        // Update UI state
+        hurdleGameEnded.value = false;
+        updateHurdleUI();
+        
+        // Start first hurdle with configuration settings
+        const gameController = hurdleController.value.getCurrentGameController();
+        if (gameController) {
+          // Update the current game controller reference
+          Object.setPrototypeOf(props.gameController, Object.getPrototypeOf(gameController));
+          Object.assign(props.gameController, gameController);
+        }
+        
+        // Reset UI state
+        currentGuess.value = '';
+        showMessage('', '');
+        definition.value = null;
+        resetKeyboardState();
+        lastHurdleScore.value = 0;
+        lastCompletedHurdleNumber.value = 0;
+        
+        // Clear word definition state
+        solvedWords.value = [];
+        selectedWordForDefinition.value = null;
+        selectedWordDefinition.value = null;
+        
+        isInitialized.value = true;
+        animatingRowIndex.value = -1;
+        gameStateVersion.value++;
+        
+        showMessage(`Game started! Complete hurdles to build your score. (${maxGuesses} guesses, ${gameConfig.getDifficulty()} difficulty)`, 'info');
+        setTimeout(() => showMessage('', ''), 4000);
+        
+      } catch (error) {
+        console.error('Failed to start game:', error);
+        showMessage('Failed to start game. Please try again.', 'error');
+      }
+    };
+
+    const updateHurdleUI = () => {
+      if (!hurdleController.value) {
+        console.warn('Hurdle controller not available for UI update');
+        return;
+      }
+      
+      try {
+        const hurdleState = hurdleController.value.getHurdleState();
+        
+        // Validate hurdle state before updating UI
+        if (!hurdleState.validateState()) {
+          console.warn('Hurdle state validation failed, attempting recovery...');
+          const recoveryResult = hurdleState.detectAndRecoverFromCorruption();
+          
+          if (!recoveryResult.success) {
+            console.error('Failed to recover hurdle state, UI may be inconsistent');
+            showMessage('Warning: Game state inconsistency detected', 'error');
+            return;
+          } else {
+            console.log('Hurdle state recovered successfully');
+            if (recoveryResult.actionsPerformed.length > 0) {
+              console.log('Recovery actions:', recoveryResult.actionsPerformed);
+            }
+          }
+        }
+        
+        const previousScore = totalScore.value;
+        
+        // Update UI state with validation
+        const newHurdleNumber = hurdleState.getCurrentHurdleNumber();
+        const newCompletedCount = hurdleState.getCompletedHurdlesCount();
+        const newTotalScore = hurdleState.getTotalScore();
+        const newSolvedWords = hurdleState.getSolvedWords();
+        
+        // Validate the new values before applying
+        if (typeof newHurdleNumber !== 'number' || newHurdleNumber < 1) {
+          console.error('Invalid hurdle number:', newHurdleNumber);
+          return;
+        }
+        
+        if (typeof newCompletedCount !== 'number' || newCompletedCount < 0) {
+          console.error('Invalid completed count:', newCompletedCount);
+          return;
+        }
+        
+        if (typeof newTotalScore !== 'number' || newTotalScore < 0) {
+          console.error('Invalid total score:', newTotalScore);
+          return;
+        }
+        
+        if (!Array.isArray(newSolvedWords)) {
+          console.error('Invalid solved words array:', newSolvedWords);
+          return;
+        }
+        
+        // Apply updates
+        hurdleNumber.value = newHurdleNumber;
+        completedHurdlesCount.value = newCompletedCount;
+        totalScore.value = newTotalScore;
+        solvedWords.value = [...newSolvedWords]; // Create copy to prevent mutation
+        
+        // Animate score update if score changed
+        if (totalScore.value !== previousScore) {
+          animateScoreUpdate();
+        }
+        
+        // Force Vue reactivity update
+        gameStateVersion.value++;
+        
+      } catch (error) {
+        console.error('Error updating hurdle UI:', error);
+        showMessage('Error updating game display', 'error');
+      }
+    };
+
+    const animateScoreUpdate = () => {
+      try {
+        const scoreElement = document.querySelector('.current-score');
+        if (!scoreElement) {
+          console.warn('Score element not found, skipping animation');
+          return;
+        }
+        
+        scoreElement.classList.add('score-updated');
+        
+        // Remove animation class after animation completes with timeout
+        const timeoutId = setTimeout(() => {
+          try {
+            scoreElement.classList.remove('score-updated');
+          } catch (error) {
+            console.warn('Error removing score animation class:', error);
+          }
+        }, 600);
+        
+        // Cleanup timeout if component unmounts
+        onUnmounted(() => {
+          clearTimeout(timeoutId);
+        });
+        
+      } catch (error) {
+        console.error('Error during score animation:', error);
+      }
+    };
+
+    const handleHurdleCompletion = async (gameState) => {
+      if (!hurdleController.value) {
+        console.error('Hurdle completion called without active controller');
+        return;
+      }
+      
+      const maxRetries = 2;
+      let retryCount = 0;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          // Validate game state
+          if (!gameState || typeof gameState.getGameStatus !== 'function') {
+            throw new Error('Invalid game state provided to hurdle completion');
+          }
+          
+          if (gameState.getGameStatus() !== 'won') {
+            throw new Error('Hurdle completion called for non-won game state');
+          }
+          
+          // Process hurdle completion with state validation
+          const transition = await hurdleController.value.processHurdleCompletion(gameState);
+          
+          if (!transition || !transition.completedHurdle) {
+            throw new Error('Invalid transition data returned from hurdle completion');
+          }
+          
+          // Update UI with score
+          lastHurdleScore.value = transition.completedHurdle.getScore();
+          lastCompletedHurdleNumber.value = transition.completedHurdle.getHurdleNumber();
+          
+          // Update hurdle UI with error handling
+          try {
+            updateHurdleUI();
+          } catch (uiError) {
+            console.error('UI update failed during hurdle completion:', uiError);
+            // Continue with completion process despite UI error
+          }
+          
+          // Show score notification with animation
+          showMessage(`Hurdle ${lastCompletedHurdleNumber.value} complete! +${lastHurdleScore.value} points`, 'success');
+          
+          // Provide option to view definition of completed word (Requirement 8.1)
+          const completedWord = transition.completedHurdle.getTargetWord();
+          setTimeout(() => {
+            showMessage(`Hurdle ${lastCompletedHurdleNumber.value} complete! +${lastHurdleScore.value} points. Click "${completedWord.toUpperCase()}" below to see definition.`, 'success');
+          }, 2000);
+          
+          // Execute hurdle transition animation sequence
+          await executeHurdleTransitionAnimation(transition);
+          
+          // Success - break out of retry loop
+          break;
+          
+        } catch (error) {
+          console.error(`Hurdle completion attempt ${retryCount + 1} failed:`, error);
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            showMessage(`Processing hurdle failed, retrying... (${retryCount}/${maxRetries})`, 'error');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+          } else {
+            // All retries exhausted
+            console.error('All hurdle completion attempts failed, ending session');
+            showMessage('Error processing hurdle completion. Ending session.', 'error');
+            await handleHurdleFailure();
+            break;
+          }
+        }
+      }
+    };
+
+    const executeHurdleTransitionAnimation = async (transition) => {
+      const maxRetries = 2;
+      let retryCount = 0;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          // Step 1: Start next hurdle first to get the correct target word
+          let nextGameState;
+          try {
+            nextGameState = await hurdleController.value.startNextHurdle(transition.animationData.autoGuess);
+          } catch (error) {
+            console.error('Failed to start next hurdle:', error);
+            
+            if (retryCount < maxRetries) {
+              console.log(`Retrying hurdle transition (attempt ${retryCount + 1}/${maxRetries + 1})`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+              continue;
+            } else {
+              throw new Error(`Failed to start next hurdle after ${maxRetries + 1} attempts: ${error.message}`);
+            }
+          }
+          
+          // Step 2: Get the next target word for proper feedback generation
+          const gameController = hurdleController.value.getCurrentGameController();
+          const nextTargetWord = gameController?.getGameState()?.getTargetWord();
+          
+          // Step 3: Single unified hurdle transition animation with correct target word (Requirement 3.1, 3.2)
+          await animateHurdleTransition(transition.animationData.autoGuess, nextTargetWord);
+          
+          // Step 4: Update game controller reference with validation
+          if (!gameController) {
+            throw new Error('Game controller not available after hurdle start');
+          }
+          
+          // Validate game state before proceeding
+          if (!nextGameState || typeof nextGameState.getGameStatus !== 'function') {
+            throw new Error('Invalid game state returned from next hurdle');
+          }
+          
+          Object.setPrototypeOf(props.gameController, Object.getPrototypeOf(gameController));
+          Object.assign(props.gameController, gameController);
+          
+          // Step 5: Update hurdle number with animation (Requirement 3.4)
+          await animateHurdleNumberUpdate();
+          
+          // Step 6: Clear score notification and show transition message
+          lastHurdleScore.value = 0;
+          showMessage(`Starting Hurdle ${hurdleNumber.value}...`, 'info');
+          setTimeout(() => showMessage('', ''), 2000);
+          
+          // Step 7: Force UI update with validation (Requirement 3.5)
+          try {
+            updateHurdleUI();
+            gameStateVersion.value++;
+          } catch (uiError) {
+            console.error('UI update failed during transition:', uiError);
+            // Continue anyway - UI issues shouldn't break gameplay
+          }
+          
+          // Step 8: Check if auto-guess immediately won the next hurdle
+          if (nextGameState.getGameStatus() === 'won') {
+            // Handle immediate win from auto-guess
+            setTimeout(() => handleHurdleCompletion(nextGameState), 1000);
+          }
+          
+          // Success - break out of retry loop
+          break;
+          
+        } catch (error) {
+          console.error(`Hurdle transition attempt ${retryCount + 1} failed:`, error);
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            showMessage(`Transition failed, retrying... (${retryCount}/${maxRetries})`, 'error');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+          } else {
+            // All retries exhausted
+            console.error('All hurdle transition attempts failed, ending session');
+            showMessage('Failed to continue hurdle chain. Ending session.', 'error');
+            await handleHurdleFailure();
+            break;
+          }
+        }
+      }
+    };
+
+    const animateHurdleTransition = async (autoGuess, nextTargetWord) => {
+      // Get the game board and auto-guess feedback
+      const gameBoard = document.querySelector('#game-board');
+      if (!gameBoard) {
+        console.warn('Game board not found, skipping transition animation');
+        return;
+      }
+      
+      const rows = gameBoard.querySelectorAll('.guess-row');
+      if (rows.length === 0) {
+        console.warn('No rows found, skipping transition animation');
+        return;
+      }
+      
+      // Clear current guess immediately to prevent Vue from overwriting our animation
+      currentGuess.value = '';
+      
+      // Generate feedback for the auto-guess using the provided next target word
+      let autoGuessFeedback = [];
+      
+      if (autoGuess && nextTargetWord) {
+        autoGuessFeedback = FeedbackGenerator.generateFeedback(autoGuess.toLowerCase(), nextTargetWord.toLowerCase());
+      }
+      
+      // Animation timeout handling
+      const animationTimeout = 3000; // 3 second timeout
+      let animationCompleted = false;
+      
+      // Set up timeout to prevent hanging animations
+      const timeoutId = setTimeout(() => {
+        if (!animationCompleted) {
+          console.warn('Hurdle transition animation timed out, forcing completion');
+          // Force complete all animations
+          rows.forEach((row, rowIndex) => {
+            const tiles = row.querySelectorAll('.letter-tile');
+            tiles.forEach((tile, tileIndex) => {
+              tile.classList.remove('flipping');
+              // Clear all status classes first
+              tile.classList.remove('correct', 'present', 'absent', 'filled', 'empty', 'active');
+              
+              if (rowIndex === 0 && autoGuess && tileIndex < autoGuess.length) {
+                // First row: apply auto-guess
+                tile.textContent = autoGuess[tileIndex].toUpperCase();
+                if (autoGuessFeedback[tileIndex]) {
+                  tile.classList.add(autoGuessFeedback[tileIndex].status);
+                }
+              } else {
+                // Other rows: clear
+                tile.textContent = '';
+                tile.classList.add('empty');
+              }
+            });
+          });
+          
+          // Reset keyboard state on timeout too
+          resetKeyboardState();
+          if (autoGuess && autoGuessFeedback.length > 0) {
+            autoGuessFeedback.forEach((feedback, index) => {
+              const letter = autoGuess[index].toUpperCase();
+              keyboardState.value[letter] = feedback.status;
+            });
+          }
+        }
+      }, animationTimeout);
+      
+      try {
+        // Reset keyboard state first and prevent Vue from restoring it
+        resetKeyboardState();
+        
+        // Clear current guess to prevent Vue interference
+        currentGuess.value = '';
+        
+        // Force Vue to update the DOM with cleared state
+        await nextTick();
+        
+        // Clear all existing CSS classes from all tiles before starting animation
+        rows.forEach((row, rowIndex) => {
+          const tiles = row.querySelectorAll('.letter-tile');
+          tiles.forEach((tile, tileIndex) => {
+            // Remove all possible status classes immediately
+            tile.classList.remove('correct', 'present', 'absent', 'filled', 'empty', 'active');
+            // Set to neutral state
+            tile.classList.add('filled');
+          });
+        });
+        
+        // Start the unified flip animation for all tiles simultaneously
+        const allTiles = [];
+        rows.forEach((row, rowIndex) => {
+          const tiles = row.querySelectorAll('.letter-tile');
+          tiles.forEach((tile, tileIndex) => {
+            allTiles.push({ tile, rowIndex, tileIndex });
+            
+            // Start flip animation immediately for all tiles
+            tile.classList.add('flipping');
+            
+            // Halfway through the flip (330ms), apply the changes
+            setTimeout(() => {
+              if (rowIndex === 0 && autoGuess && tileIndex < autoGuess.length) {
+                // First row: Replace with auto-guess letter and apply feedback
+                tile.textContent = autoGuess[tileIndex].toUpperCase();
+                tile.classList.remove('correct', 'present', 'absent', 'filled', 'empty', 'active');
+                if (autoGuessFeedback[tileIndex]) {
+                  tile.classList.add(autoGuessFeedback[tileIndex].status);
+                }
+              } else {
+                // All other rows and tiles: Clear and make empty
+                tile.textContent = '';
+                tile.classList.remove('correct', 'present', 'absent', 'filled', 'active');
+                tile.classList.add('empty');
+              }
+            }, 330); // Halfway through the 0.66s flip animation
+            
+            // Remove flipping class when animation completes
+            setTimeout(() => {
+              tile.classList.remove('flipping');
+            }, 660); // Full flip animation duration
+          });
+        });
+        
+        // Wait for all flip animations to complete
+        await new Promise(resolve => setTimeout(resolve, 700)); // Slightly longer than animation duration
+        
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        
+        // Update keyboard state with auto-guess feedback (this should be the only keyboard state)
+        if (autoGuess && autoGuessFeedback.length > 0) {
+          // Ensure keyboard is completely reset first
+          resetKeyboardState();
+          
+          autoGuessFeedback.forEach((feedback, index) => {
+            const letter = autoGuess[index].toUpperCase();
+            const status = feedback.status;
+            
+            // Apply only the auto-guess feedback to keyboard
+            keyboardState.value[letter] = status;
+          });
+        }
+        
+        // Force Vue to re-render after animation completes to sync with DOM changes
+        gameStateVersion.value++;
+        
+      } catch (error) {
+        console.error('Error during hurdle transition animation:', error);
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        
+        // Force complete on error
+        rows.forEach((row, rowIndex) => {
+          const tiles = row.querySelectorAll('.letter-tile');
+          tiles.forEach((tile, tileIndex) => {
+            tile.classList.remove('flipping');
+            // Clear all status classes first
+            tile.classList.remove('correct', 'present', 'absent', 'filled', 'empty', 'active');
+            
+            if (rowIndex === 0 && autoGuess && tileIndex < autoGuess.length) {
+              // First row: apply auto-guess
+              tile.textContent = autoGuess[tileIndex].toUpperCase();
+              if (autoGuessFeedback[tileIndex]) {
+                tile.classList.add(autoGuessFeedback[tileIndex].status);
+              }
+            } else {
+              // Other rows: clear
+              tile.textContent = '';
+              tile.classList.add('empty');
+            }
+          });
+        });
+        
+        // Reset keyboard state on error too
+        resetKeyboardState();
+        if (autoGuess && autoGuessFeedback.length > 0) {
+          autoGuessFeedback.forEach((feedback, index) => {
+            const letter = autoGuess[index].toUpperCase();
+            keyboardState.value[letter] = feedback.status;
+          });
+        }
+        
+        // Force Vue to re-render after error
+        gameStateVersion.value++;
+      }
+    };
+
+    const animateHurdleNumberUpdate = async () => {
+      const hurdleNumberElement = document.querySelector('.hurdle-number');
+      if (!hurdleNumberElement) {
+        console.warn('Hurdle number element not found, skipping animation');
+        return;
+      }
+      
+      // Animation timeout handling
+      const animationTimeout = 1000; // 1 second timeout
+      let animationCompleted = false;
+      
+      // Set up timeout to prevent hanging animations
+      const timeoutId = setTimeout(() => {
+        if (!animationCompleted) {
+          console.warn('Hurdle number update animation timed out, forcing completion');
+          hurdleNumberElement.classList.remove('updating');
+        }
+      }, animationTimeout);
+      
+      try {
+        // Add update animation
+        hurdleNumberElement.classList.add('updating');
+        
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        
+        // Remove animation class
+        hurdleNumberElement.classList.remove('updating');
+        
+      } catch (error) {
+        console.error('Error during hurdle number animation:', error);
+        animationCompleted = true;
+        clearTimeout(timeoutId);
+        hurdleNumberElement.classList.remove('updating');
+      }
+    };
+
+    const handleHurdleFailure = async () => {
+      if (!hurdleController.value) return;
+      
+      try {
+        const currentGameState = hurdleController.value.getCurrentGameController()?.getGameState();
+        const targetWord = currentGameState?.getTargetWord()?.toUpperCase() || 'UNKNOWN';
+        
+        // End game session
+        hurdleController.value.endHurdleMode('failure', targetWord);
+        
+        // Update UI
+        hurdleGameEnded.value = true;
+        updateHurdleUI(); // This will update solvedWords for access to all completed words
+        
+        // Show game over message
+        showMessage(`Game ended! The word was ${targetWord}`, 'error');
+        
+        // Show word definition
+        await fetchWordDefinition(targetWord);
+        
+      } catch (error) {
+        console.error('Failed to handle hurdle failure:', error);
+        showMessage('Error ending hurdle session', 'error');
+      }
+    };
+
+    // Word Definition Methods (Requirement 8.1, 8.3, 8.4)
+    const viewWordDefinition = async (word) => {
+      selectedWordForDefinition.value = word;
+      try {
+        const definition = await fetchWordDefinitionData(word);
+        selectedWordDefinition.value = definition;
+      } catch (error) {
+        console.error('Failed to fetch word definition:', error);
+        selectedWordDefinition.value = {
+          word: word,
+          definitions: [{
+            partOfSpeech: 'word',
+            text: 'Definition could not be loaded at this time.'
+          }]
+        };
+      }
+    };
+
+    const closeWordDefinition = () => {
+      selectedWordForDefinition.value = null;
+      selectedWordDefinition.value = null;
+    };
+
+    const fetchWordDefinitionData = async (word) => {
+      try {
+        // Check if fetch is available (browser environment)
+        if (typeof fetch === 'undefined') {
+          // In Node.js environment (tests), skip API call
+          return {
+            word: word,
+            definitions: [{
+              partOfSpeech: 'noun',
+              text: 'Definition not available in test environment'
+            }]
+          };
+        }
+        
+        // Use WordsAPI for word definitions
+        const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
+            'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+          }
+        });
+        
+        // Handle 403 Forbidden (API key issues) gracefully
+        if (response.status === 403) {
+          return {
+            word: word,
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available with demo API key.'
+            }]
+          };
+        }
+        
+        if (!response.ok) {
+          // Don't throw error, just handle gracefully
+          return {
+            word: word,
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            }]
+          };
+        }
+        
+        const data = await response.json();
+        
+        // WordsAPI structure: { results: [{ definition, partOfSpeech }] }
+        if (data && data.results && data.results.length > 0) {
+          // Collect definitions that have typeOf (common concepts) and filter out instanceOf (proper nouns)
+          const validDefinitions = data.results
+            .filter(result => result.typeOf && !result.instanceOf)
+            .map(result => ({
+              partOfSpeech: result.partOfSpeech || 'word',
+              text: result.definition || 'Definition not available'
+            }));
+          
+          // If no valid definitions found, show all definitions as fallback
+          let definitions = validDefinitions.length > 0 ? validDefinitions : 
+            data.results.map(result => ({
+              partOfSpeech: result.partOfSpeech || 'word',
+              text: result.definition || 'Definition not available'
+            }));
+          
+          // Filter out inappropriate content
+          definitions = filterInappropriateContent(definitions);
+          
+          // If all definitions were filtered out, provide a safe fallback
+          if (definitions.length === 0) {
+            definitions = [{
+              partOfSpeech: 'word',
+              text: 'Definition not available due to content restrictions.'
+            }];
+          }
+          
+          return {
+            word: word,
+            definitions: definitions
+          };
+        } else {
+          return {
+            word: word,
+            definitions: [{
+              partOfSpeech: 'uncommon word',
+              text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+            }]
+          };
+        }
+      } catch (error) {
+        // Silently handle errors for uncommon words
+        return {
+          word: word,
+          definitions: [{
+            partOfSpeech: 'uncommon word',
+            text: 'This is a rare or technical English word. Definition not available from WordsAPI.'
+          }]
+        };
+      }
+    };
+    
+    // Configuration change handler
+    const handleConfigChange = (setting, value) => {
+      console.log(`Configuration changed: ${setting} = ${value}`);
+      
+      // Update reactive values immediately for instant UI feedback
+      if (setting === 'maxGuesses') {
+        maxGuesses.value = value;
+      } else if (setting === 'reset') {
+        maxGuesses.value = gameConfig.getMaxGuesses();
+      }
+      
+      // Force immediate update of reactive properties
+      configVersion.value++;
+      gameStateVersion.value++;
+      
+      // For immediate visual feedback, update the board right away
+      nextTick(() => {
+        // Force Vue to re-render the board with new configuration
+        configVersion.value++;
+      });
+      
+      // Show message about configuration change and auto-restart
+      if (setting === 'reset') {
+        showMessage('Settings reset to defaults. Restarting game...', 'info');
+      } else if (setting === 'hardMode') {
+        const hardModeStatus = value ? 'enabled' : 'disabled';
+        showMessage(`Hard mode ${hardModeStatus}. Restarting game...`, 'info');
+      } else {
+        showMessage('Settings saved. Restarting game...', 'info');
+      }
+      
+      // Automatically restart the game with new settings after a short delay
+      setTimeout(async () => {
+        try {
+          await handleNewGame();
+        } catch (error) {
+          console.error('Failed to restart game with new settings:', error);
+          showMessage('Failed to apply new settings. Please start a new game manually.', 'error');
+        }
+      }, 1000);
+    };
     
     onMounted(async () => {
-      console.log('Component mounted, initializing game...');
-      if (props.gameController) {
-        await handleNewGame();
-      } else {
-        console.error('Game controller not available on mount');
-      }
       // Add global keyboard event listener
       document.addEventListener('keydown', handleGlobalKeydown);
+      
+      // Always initialize controller and start game
+      if (props.gameController && props.dictionary) {
+        try {
+          // Initialize hurdle controller immediately on mount
+          await initializeHurdleController();
+          
+          // Automatically start game
+          await startHurdleMode();
+        } catch (error) {
+          console.error('Failed to initialize game on mount:', error);
+          showMessage('Failed to initialize game. Please try again.', 'error');
+        }
+      } else {
+        console.error('Game controller or dictionary not available on mount');
+        showMessage('Game initialization failed. Missing required components.', 'error');
+      }
     });
     
     // Clean up event listener when component unmounts
@@ -473,6 +1415,10 @@ export default {
     });
     
     return {
+      gameConfig,
+      showConfigPage,
+      configVersion,
+      maxGuesses,
       currentGuess,
       message,
       messageType,
@@ -481,11 +1427,28 @@ export default {
       keyboardLayout,
       boardRows,
       isGameOver,
+      isGameActive,
       isInitialized,
+      // Game Properties
+      hurdleNumber,
+      completedHurdlesCount,
+      totalScore,
+      lastHurdleScore,
+      lastCompletedHurdleNumber,
+      hurdleGameEnded,
+      // Word Definition Properties
+      solvedWords,
+      selectedWordForDefinition,
+      selectedWordDefinition,
+      // Methods
       handleKeyPress,
       handleGlobalKeydown,
       handleGuessSubmit,
-      handleNewGame
+      handleNewGame,
+      handleConfigChange,
+      // Word Definition Methods
+      viewWordDefinition,
+      closeWordDefinition
     };
   }
 };

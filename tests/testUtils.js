@@ -1,5 +1,5 @@
 /**
- * Test utilities for Vue component testing
+ * Test utilities for Vue component testing with Hurdle Mode support
  */
 
 // Import Vue test utilities
@@ -9,6 +9,7 @@ const { nextTick } = require('vue');
 // Import business logic modules
 const Dictionary = require('../src/Dictionary');
 const GameController = require('../src/GameController');
+const HurdleController = require('../src/HurdleController');
 
 // Import Vue component
 const App = require('../src/App.vue').default;
@@ -28,21 +29,27 @@ function createTestDictionary() {
 }
 
 /**
- * Create a game controller with test dictionary
+ * Create a hurdle controller with test dictionary
  */
-function createTestGameController() {
+function createTestHurdleController() {
   const dictionary = createTestDictionary();
-  return new GameController(dictionary);
+  return new HurdleController(dictionary);
 }
 
 /**
- * Mount App component with test game controller
+ * Mount App component with test hurdle controller
  */
-function mountAppWithTestController(options = {}) {
-  const gameController = createTestGameController();
+async function mountAppWithHurdleController(options = {}) {
+  const dictionary = createTestDictionary();
+  const gameController = new GameController(dictionary);
+  const hurdleController = new HurdleController(dictionary);
+  
+  // Initialize the hurdle controller
+  await hurdleController.startHurdleMode();
   
   const defaultProps = {
-    gameController
+    gameController,
+    dictionary
   };
   
   const mountOptions = {
@@ -50,10 +57,25 @@ function mountAppWithTestController(options = {}) {
     ...options
   };
   
+  const wrapper = mount(App, mountOptions);
+  
+  // Wait for component to mount and initialize
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   return {
-    wrapper: mount(App, mountOptions),
-    gameController
+    wrapper,
+    gameController,
+    hurdleController,
+    dictionary
   };
+}
+
+/**
+ * Mount App component with test game controller (legacy support)
+ */
+async function mountAppWithTestController(options = {}) {
+  // For backward compatibility, redirect to hurdle controller
+  return await mountAppWithHurdleController(options);
 }
 
 /**
@@ -156,7 +178,7 @@ async function getDisplayedMessage(wrapper) {
   const allElements = wrapper.findAll('*');
   for (const element of allElements) {
     const text = element.text().trim();
-    if (text.includes('Congratulations') || text.includes('Game Over')) {
+    if (text.includes('Congratulations') || text.includes('Game ended')) {
       return {
         text: text,
         classes: element.classes()
@@ -168,26 +190,41 @@ async function getDisplayedMessage(wrapper) {
 }
 
 /**
- * Simulate a complete game to win state
+ * Simulate a complete hurdle to completion state
  */
-async function playGameToWin(wrapper, gameController, targetWord = null) {
-  // If no target word provided, get it from the game state
+async function playHurdleToCompletion(wrapper, hurdleController, targetWord = null) {
+  // If no target word provided, get it from the current game state
   if (!targetWord) {
-    targetWord = gameController.getGameState().getTargetWord();
+    const currentGameController = hurdleController.getCurrentGameController();
+    const gameState = currentGameController?.getGameState();
+    if (gameState) {
+      targetWord = gameState.getTargetWord();
+    } else {
+      throw new Error('No game state available and no target word provided');
+    }
   }
   
-  await typeWord(wrapper, targetWord);
-  await submitGuess(wrapper);
+  // Clear any existing input first
+  wrapper.vm.currentGuess = '';
   await waitForUpdates();
-  // Additional wait for async operations
-  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Type the target word
+  await typeWord(wrapper, targetWord);
+  await waitForUpdates();
+  
+  // Submit the guess
+  await submitGuess(wrapper);
+  
+  // Wait for hurdle completion processing and transition setup
+  await new Promise(resolve => setTimeout(resolve, 3000));
 }
 
 /**
- * Simulate a complete game to loss state
+ * Simulate a complete hurdle to failure state
  */
-async function playGameToLoss(wrapper, gameController) {
-  const targetWord = gameController.getGameState().getTargetWord();
+async function playHurdleToFailure(wrapper, hurdleController) {
+  const currentGameController = hurdleController.getCurrentGameController();
+  const targetWord = currentGameController.getGameState().getTargetWord();
   const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE', 'EAGLE', 'FLAME'];
   
   // Make 4 wrong guesses (avoid the target word and duplicates)
@@ -210,13 +247,34 @@ async function playGameToLoss(wrapper, gameController) {
   }
   
   // Additional wait for final async operations
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+
+/**
+ * Create a mock feedback array for a word
+ */
+function createMockFeedback(word, status = 'correct') {
+  return word.split('').map(letter => ({
+    letter: letter.toLowerCase(),
+    status: status
+  }));
+}
+
+/**
+ * Create a mock Guess object with proper feedback
+ */
+function createMockGuess(word, status = 'correct') {
+  const Guess = require('../src/Guess');
+  const feedback = createMockFeedback(word, status);
+  return new Guess(word, feedback);
 }
 
 module.exports = {
   createTestDictionary,
-  createTestGameController,
+  createTestGameController: createTestHurdleController, // Redirect to hurdle controller
+  createTestHurdleController,
   mountAppWithTestController,
+  mountAppWithHurdleController,
   waitForUpdates,
   typeWord,
   submitGuess,
@@ -224,6 +282,10 @@ module.exports = {
   getBoardState,
   getKeyboardState,
   getDisplayedMessage,
-  playGameToWin,
-  playGameToLoss
+  playGameToWin: playHurdleToCompletion, // Redirect to hurdle completion
+  playGameToLoss: playHurdleToFailure, // Redirect to hurdle failure
+  playHurdleToCompletion,
+  playHurdleToFailure,
+  createMockFeedback,
+  createMockGuess
 };

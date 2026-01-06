@@ -1,5 +1,5 @@
 /**
- * GameState module for Hard Wordle
+ * GameState module for Hurdle
  * Manages the state of a single game session
  */
 

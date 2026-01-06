@@ -1,5 +1,5 @@
 /**
- * Unit tests for GameState class
+ * Unit tests for GameState class (Hurdle Mode Context)
  */
 
 const GameState = require('../src/GameState');
@@ -7,7 +7,7 @@ const Guess = require('../src/Guess');
 const FeedbackGenerator = require('../src/FeedbackGenerator');
 const fc = require('fast-check');
 
-describe('GameState', () => {
+describe('GameState (Hurdle Mode Context)', () => {
   describe('constructor', () => {
     test('should create a game state with valid parameters', () => {
       const gameState = new GameState('apple', 4);
@@ -60,7 +60,7 @@ describe('GameState', () => {
       expect(gameState.getRemainingAttempts()).toBe(3);
     });
 
-    test('should update status to won when guess matches target', () => {
+    test('should update status to won when guess matches target in hurdle', () => {
       const gameState = new GameState('apple');
       const feedback = FeedbackGenerator.generateFeedback('apple', 'apple');
       const guess = new Guess('apple', feedback);
@@ -71,7 +71,7 @@ describe('GameState', () => {
       expect(gameState.isGameOver()).toBe(true);
     });
 
-    test('should update status to lost when max attempts reached', () => {
+    test('should update status to lost when max attempts reached in hurdle', () => {
       const gameState = new GameState('apple', 2);
       
       const feedback1 = FeedbackGenerator.generateFeedback('bread', 'apple');
@@ -86,7 +86,7 @@ describe('GameState', () => {
       expect(gameState.isGameOver()).toBe(true);
     });
 
-    test('should throw error when adding guess to finished game', () => {
+    test('should throw error when adding guess to finished hurdle', () => {
       const gameState = new GameState('apple');
       const feedback = FeedbackGenerator.generateFeedback('apple', 'apple');
       const guess = new Guess('apple', feedback);
@@ -124,13 +124,13 @@ describe('GameState', () => {
   });
 
   describe('isGameOver', () => {
-    test('should return false for in-progress game', () => {
+    test('should return false for in-progress hurdle', () => {
       const gameState = new GameState('apple');
       
       expect(gameState.isGameOver()).toBe(false);
     });
 
-    test('should return true for won game', () => {
+    test('should return true for won hurdle', () => {
       const gameState = new GameState('apple');
       const feedback = FeedbackGenerator.generateFeedback('apple', 'apple');
       gameState.addGuess(new Guess('apple', feedback));
@@ -138,7 +138,7 @@ describe('GameState', () => {
       expect(gameState.isGameOver()).toBe(true);
     });
 
-    test('should return true for lost game', () => {
+    test('should return true for lost hurdle', () => {
       const gameState = new GameState('apple', 1);
       const feedback = FeedbackGenerator.generateFeedback('bread', 'apple');
       gameState.addGuess(new Guess('bread', feedback));

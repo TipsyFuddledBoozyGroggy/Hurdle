@@ -1,11 +1,11 @@
 /**
  * Integration tests for App.vue component
- * Tests complete game flows and UI interactions
+ * Tests complete hurdle flows and UI interactions
  */
 
 const { nextTick } = require('vue');
 const {
-  mountAppWithTestController,
+  mountAppWithHurdleController,
   waitForUpdates,
   typeWord,
   submitGuess,
@@ -13,18 +13,18 @@ const {
   getBoardState,
   getKeyboardState,
   getDisplayedMessage,
-  playGameToWin,
-  playGameToLoss
+  playHurdleToCompletion,
+  playHurdleToFailure
 } = require('./testUtils');
 
 describe('App.vue Integration Tests', () => {
   let wrapper;
-  let gameController;
+  let hurdleController;
 
   beforeEach(async () => {
-    const result = mountAppWithTestController();
+    const result = await mountAppWithHurdleController();
     wrapper = result.wrapper;
-    gameController = result.gameController;
+    hurdleController = result.hurdleController;
     await waitForUpdates();
   });
 
@@ -34,13 +34,18 @@ describe('App.vue Integration Tests', () => {
     }
   });
 
-  describe('Complete Game Flow - Win Scenario', () => {
-    test('should complete a full game from start to win through UI', async () => {
-      // Get the target word from the game state
-      const targetWord = gameController.getGameState().getTargetWord();
+  describe('Complete Hurdle Flow - Win Scenario', () => {
+    test('should complete a full hurdle from start to completion through UI', async () => {
+      // Get the target word from the current game state
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
-      // Verify initial state
-      expect(await getDisplayedMessage(wrapper)).toBeNull();
+      // Verify initial hurdle state
+      const initialMessage = await getDisplayedMessage(wrapper);
+      expect(initialMessage?.text).toContain('Game started');
+      expect(wrapper.vm.hurdleNumber).toBe(1);
+      expect(wrapper.vm.completedHurdlesCount).toBe(0);
+      expect(wrapper.vm.totalScore).toBe(0);
       
       // Type and submit the correct word
       await typeWord(wrapper, targetWord);
@@ -53,78 +58,84 @@ describe('App.vue Integration Tests', () => {
       // Submit the guess
       await submitGuess(wrapper);
       
-      // Wait longer for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait longer for hurdle completion processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify win state
+      // Verify hurdle completion state
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
-      expect(message.text).toContain('Congratulations! You won!');
-      expect(message.text).toContain(targetWord.toUpperCase());
-      expect(message.classes).toContain('success');
+      expect(message.text).toContain('complete!');
+      expect(message.text).toContain('points');
       
-      // Verify board shows correct feedback (all green)
+      // Verify hurdle progression
+      expect(wrapper.vm.hurdleNumber).toBe(2); // Should advance to next hurdle
+      expect(wrapper.vm.completedHurdlesCount).toBe(1);
+      expect(wrapper.vm.totalScore).toBeGreaterThan(0);
+      
+      // Verify board shows auto-guess for next hurdle
       const finalBoard = getBoardState(wrapper);
-      const winningRow = finalBoard[0];
-      winningRow.forEach(tile => {
-        expect(tile.classes).toContain('correct');
-      });
+      const nextHurdleRow = finalBoard[0];
+      expect(nextHurdleRow.map(tile => tile.letter).join('')).toBe(targetWord.toUpperCase());
       
-      // Verify keyboard state updated
-      const keyboardState = getKeyboardState(wrapper);
-      for (const letter of targetWord.toUpperCase()) {
-        expect(keyboardState[letter]).toContain('correct');
-      }
     }, 15000);
 
-    test('should win on the last attempt (4th guess)', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
-      const testWords = ['APPLE', 'BREAD', 'CRANE'];
+    test('should handle multiple hurdle completions in sequence', async () => {
+      // Complete first hurdle
+      const firstGameController = hurdleController.getCurrentGameController();
+      const firstTargetWord = firstGameController.getGameState().getTargetWord();
       
-      // Make 3 wrong guesses
-      for (let i = 0; i < 3; i++) {
-        let guessWord = testWords[i];
-        // Make sure we don't accidentally guess the target word
-        if (guessWord === targetWord.toUpperCase()) {
-          guessWord = 'FLAME';
-        }
-        
-        await typeWord(wrapper, guessWord);
-        await submitGuess(wrapper);
-        await waitForUpdates();
-      }
+      await typeWord(wrapper, firstTargetWord);
+      await submitGuess(wrapper);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Make the winning guess on the 4th attempt
-      await typeWord(wrapper, targetWord);
+      // Verify first hurdle completed
+      expect(wrapper.vm.hurdleNumber).toBe(2);
+      expect(wrapper.vm.completedHurdlesCount).toBe(1);
+      const firstScore = wrapper.vm.totalScore;
+      expect(firstScore).toBeGreaterThan(0);
+      
+      // Complete second hurdle (need to make additional guesses since auto-guess is already applied)
+      const secondGameController = hurdleController.getCurrentGameController();
+      const secondTargetWord = secondGameController.getGameState().getTargetWord();
+      
+      // Make a guess that's not the target to continue the hurdle
+      await typeWord(wrapper, 'BREAD');
       await submitGuess(wrapper);
       await waitForUpdates();
       
-      // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Then complete the second hurdle
+      await typeWord(wrapper, secondTargetWord);
+      await submitGuess(wrapper);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify win state
-      const message = await getDisplayedMessage(wrapper);
-      expect(message).not.toBeNull();
-      expect(message.text).toContain('Congratulations! You won!');
-    }, 20000);
+      // Verify second hurdle completed
+      expect(wrapper.vm.hurdleNumber).toBe(3);
+      expect(wrapper.vm.completedHurdlesCount).toBe(2);
+      expect(wrapper.vm.totalScore).toBeGreaterThan(firstScore);
+      
+    }, 25000);
   });
 
-  describe('Complete Game Flow - Loss Scenario', () => {
-    test('should complete a full game from start to loss through UI', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+  describe('Complete Hurdle Flow - Failure Scenario', () => {
+    test('should end hurdle session when failing to complete a hurdle', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
-      // Play game to loss
-      await playGameToLoss(wrapper, gameController);
+      // Play hurdle to failure (use all 4 attempts without winning)
+      await playHurdleToFailure(wrapper, hurdleController);
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify loss state
+      // Verify failure state
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
-      expect(message.text).toContain('Game Over!');
+      expect(message.text).toContain('Game ended!');
       expect(message.text).toContain(targetWord.toUpperCase());
       expect(message.classes).toContain('error');
+      
+      // Verify hurdle session ended
+      expect(wrapper.vm.hurdleGameEnded).toBe(true);
       
       // Verify all 4 rows are filled
       const finalBoard = getBoardState(wrapper);
@@ -132,20 +143,24 @@ describe('App.vue Integration Tests', () => {
         const row = finalBoard[i];
         expect(row.every(tile => tile.letter !== '')).toBe(true);
       }
-    }, 20000);
+    }, 25000);
 
-    test('should show target word after loss', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+    test('should show target word and final score after hurdle session ends', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
-      await playGameToLoss(wrapper, gameController);
+      await playHurdleToFailure(wrapper, hurdleController);
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
       expect(message.text).toContain(`The word was ${targetWord.toUpperCase()}`);
-    }, 20000);
+      
+      // Verify game end summary is shown
+      expect(wrapper.vm.hurdleGameEnded).toBe(true);
+    }, 25000);
   });
 
   describe('Keyboard Interaction', () => {
@@ -192,7 +207,8 @@ describe('App.vue Integration Tests', () => {
     });
 
     test('should handle enter key for submission', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
       // Type the target word
       await typeWord(wrapper, targetWord);
@@ -203,13 +219,13 @@ describe('App.vue Integration Tests', () => {
       await waitForUpdates();
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify submission occurred
+      // Verify submission occurred (hurdle completion)
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
-      expect(message.text).toContain('Congratulations! You won!');
-    });
+      expect(message.text).toContain('complete!');
+    }, 15000);
 
     test('should handle physical keyboard input', async () => {
       // Simulate physical keyboard events on the document
@@ -268,21 +284,18 @@ describe('App.vue Integration Tests', () => {
       expect(currentRow.map(tile => tile.letter).join('')).toBe('ABCDE');
     });
 
-    test('should ignore input when game is over', async () => {
-      // Win the game first
-      const targetWord = gameController.getGameState().getTargetWord();
-      await playGameToWin(wrapper, gameController, targetWord);
+    test('should ignore input when hurdle session is over', async () => {
+      // End the hurdle session first
+      await playHurdleToFailure(wrapper, hurdleController);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Try to type after game is over
+      // Try to type after hurdle session is over
       await typeWord(wrapper, 'HELLO');
       
-      // Verify no new input was accepted
+      // Verify no new input was accepted (board should remain as it was)
       const board = getBoardState(wrapper);
-      // The winning row should still be there, but no new input
-      expect(board[0].map(tile => tile.letter).join('')).toBe(targetWord.toUpperCase());
-      
-      // Second row should be empty
-      expect(board[1].every(tile => tile.letter === '')).toBe(true);
+      // All rows should be filled from the failure, no new input should appear
+      expect(board.every(row => row.every(tile => tile.letter !== '' || tile.status === 'empty'))).toBe(true);
     });
   });
 
@@ -349,47 +362,61 @@ describe('App.vue Integration Tests', () => {
     });
   });
 
-  describe('New Game Functionality', () => {
-    test('should reset game state when new game button is clicked', async () => {
-      // Make a guess first
-      await typeWord(wrapper, 'APPLE');
-      await submitGuess(wrapper);
+  describe('New Hurdle Session Functionality', () => {
+    test('should reset hurdle session state when new game button is clicked', async () => {
+      // Complete a hurdle first to have some state
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
-      // Verify game state changed
+      await typeWord(wrapper, targetWord);
+      await submitGuess(wrapper);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Verify hurdle state changed
+      expect(wrapper.vm.hurdleNumber).toBe(2);
+      expect(wrapper.vm.completedHurdlesCount).toBe(1);
+      expect(wrapper.vm.totalScore).toBeGreaterThan(0);
       
       // Click new game button
       const newGameBtn = wrapper.find('#new-game-btn');
       await newGameBtn.trigger('click');
       await waitForUpdates();
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Verify game was reset
+      // Verify hurdle session was reset
+      expect(wrapper.vm.hurdleNumber).toBe(1);
+      expect(wrapper.vm.completedHurdlesCount).toBe(0);
+      expect(wrapper.vm.totalScore).toBe(0);
+      expect(wrapper.vm.hurdleGameEnded).toBe(false);
       
       // Verify board is cleared
       const board = getBoardState(wrapper);
       expect(board[0].every(tile => tile.letter === '')).toBe(true);
       
-      // Verify message is cleared
-      expect(await getDisplayedMessage(wrapper)).toBeNull();
-    });
+      // Verify message shows game started
+      const message = await getDisplayedMessage(wrapper);
+      expect(message?.text).toContain('Game started');
+    }, 15000);
 
-    test('should clear keyboard state on new game', async () => {
+    test('should clear keyboard state on new hurdle session', async () => {
       // Make a guess to update keyboard state
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
       await waitForUpdates();
       
       // Verify keyboard has some state (wait for async operations to complete)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       const keyboardBefore = getKeyboardState(wrapper);
       const hasKeyboardState = Object.values(keyboardBefore).some(classes => 
         classes.includes('correct') || classes.includes('present') || classes.includes('absent')
       );
       expect(hasKeyboardState).toBe(true);
       
-      // Start new game
+      // Start new hurdle session
       const newGameBtn = wrapper.find('#new-game-btn');
       await newGameBtn.trigger('click');
       await waitForUpdates();
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Verify keyboard state is cleared
       const keyboardAfter = getKeyboardState(wrapper);
@@ -397,28 +424,50 @@ describe('App.vue Integration Tests', () => {
         classes.includes('correct') || classes.includes('present') || classes.includes('absent')
       );
       expect(hasKeyboardStateAfter).toBe(false);
-    });
+    }, 15000);
 
-    test('should generate new target word on new game', async () => {
-      const firstTargetWord = gameController.getGameState().getTargetWord();
+    test('should generate new target word on new hurdle session', async () => {
+      const firstGameController = hurdleController.getCurrentGameController();
+      const firstTargetWord = firstGameController.getGameState().getTargetWord();
       
-      // Start new game
+      // Start new hurdle session
       const newGameBtn = wrapper.find('#new-game-btn');
       await newGameBtn.trigger('click');
       await waitForUpdates();
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const secondTargetWord = gameController.getGameState().getTargetWord();
+      const secondGameController = hurdleController.getCurrentGameController();
+      const secondTargetWord = secondGameController.getGameState().getTargetWord();
       
-      // Note: There's a small chance they could be the same, but very unlikely with 26 words
-      // We'll just verify that a new game was started
-    });
+      // Verify that a new hurdle session was started (target word may or may not be different)
+      expect(wrapper.vm.hurdleNumber).toBe(1);
+      expect(wrapper.vm.completedHurdlesCount).toBe(0);
+    }, 10000);
   });
 
-  describe('Game State Display', () => {
+  describe('Hurdle Mode Display', () => {
     test('should show game title', async () => {
       const title = wrapper.find('h1');
       expect(title.exists()).toBe(true);
       expect(title.text()).toBe('Hurdle');
+    });
+
+    test('should show hurdle progress information', async () => {
+      // Verify hurdle progress elements are displayed
+      const hurdleProgress = wrapper.find('.hurdle-progress');
+      expect(hurdleProgress.exists()).toBe(true);
+      
+      const hurdleNumber = wrapper.find('.hurdle-number');
+      expect(hurdleNumber.exists()).toBe(true);
+      expect(hurdleNumber.text()).toContain('Hurdle 1');
+      
+      const completedCount = wrapper.find('.completed-count');
+      expect(completedCount.exists()).toBe(true);
+      expect(completedCount.text()).toContain('Completed: 0');
+      
+      const currentScore = wrapper.find('.current-score');
+      expect(currentScore.exists()).toBe(true);
+      expect(currentScore.text()).toContain('Score: 0');
     });
 
     test('should show new game button', async () => {

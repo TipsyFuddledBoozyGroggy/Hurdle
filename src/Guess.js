@@ -1,5 +1,5 @@
 /**
- * Guess module for Hard Wordle
+ * Guess module for Hurdle
  * Represents a single guess with its feedback
  */
 

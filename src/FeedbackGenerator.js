@@ -1,5 +1,5 @@
 /**
- * FeedbackGenerator module for Hard Wordle
+ * FeedbackGenerator module for Hurdle
  * Generates feedback for guesses compared to the target word
  */
 

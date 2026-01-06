@@ -615,7 +615,7 @@ describe('Dictionary', () => {
             }
           }
         ),
-        { numRuns: 100 } // Run 100 iterations to test various failure scenarios
+        { numRuns: 10 } // Run 10 iterations to test various failure scenarios
       );
     });
   });

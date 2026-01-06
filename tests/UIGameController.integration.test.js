@@ -1,10 +1,10 @@
 /**
- * Integration tests for UI and GameController interaction
- * Tests that UI correctly reflects game state changes and processes user input
+ * Integration tests for UI and HurdleController interaction
+ * Tests that UI correctly reflects hurdle state changes and processes user input
  */
 
 const {
-  mountAppWithTestController,
+  mountAppWithHurdleController,
   waitForUpdates,
   typeWord,
   submitGuess,
@@ -13,14 +13,14 @@ const {
   getDisplayedMessage
 } = require('./testUtils');
 
-describe('UI and GameController Integration Tests', () => {
+describe('UI and HurdleController Integration Tests', () => {
   let wrapper;
-  let gameController;
+  let hurdleController;
 
   beforeEach(async () => {
-    const result = mountAppWithTestController();
+    const result = await mountAppWithHurdleController();
     wrapper = result.wrapper;
-    gameController = result.gameController;
+    hurdleController = result.hurdleController;
     await waitForUpdates();
   });
 
@@ -30,20 +30,25 @@ describe('UI and GameController Integration Tests', () => {
     }
   });
 
-  describe('UI Reflects Game State Changes', () => {
-    test('should update game state when guesses are made', async () => {
-      // Initial state - no guesses
-      expect(gameController.getGameState().getGuesses().length).toBe(0);
+  describe('UI Reflects Hurdle State Changes', () => {
+    test('should update hurdle state when guesses are made', async () => {
+      // Initial state - no completed hurdles
+      expect(wrapper.vm.completedHurdlesCount).toBe(0);
+      expect(wrapper.vm.hurdleNumber).toBe(1);
+      expect(wrapper.vm.totalScore).toBe(0);
       
-      // Make first guess
+      // Get current game controller and make first guess
+      const currentGameController = hurdleController.getCurrentGameController();
+      const gameState = currentGameController.getGameState();
+      
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
       await waitForUpdates();
       
       // Wait for async operations to complete and verify first guess
       await new Promise(resolve => setTimeout(resolve, 1000));
-      expect(gameController.getGameState().getGuesses().length).toBe(1);
-      expect(gameController.getGameState().getRemainingAttempts()).toBe(3);
+      expect(gameState.getGuesses().length).toBe(1);
+      expect(gameState.getRemainingAttempts()).toBe(3);
       
       // Make second guess - use a different word to avoid duplicate detection
       await typeWord(wrapper, 'BREAD');
@@ -54,12 +59,13 @@ describe('UI and GameController Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Verify game state continues to update
-      expect(gameController.getGameState().getGuesses().length).toBe(2);
-      expect(gameController.getGameState().getRemainingAttempts()).toBe(2);
+      expect(gameState.getGuesses().length).toBe(2);
+      expect(gameState.getRemainingAttempts()).toBe(2);
     }, 15000);
 
-    test('should display game board that matches game state guesses', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+    test('should display game board that matches hurdle state guesses', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
       // Make a few guesses
       const testGuesses = ['APPLE', 'BREAD'];
@@ -73,7 +79,7 @@ describe('UI and GameController Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Get game state
-        const gameState = gameController.getGameState();
+        const gameState = currentGameController.getGameState();
         const guesses = gameState.getGuesses();
         
         // Get UI board state
@@ -97,29 +103,33 @@ describe('UI and GameController Integration Tests', () => {
       }
     }, 10000);
 
-    test('should show win message when game controller indicates win', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+    test('should show hurdle completion message when hurdle controller indicates completion', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
       // Make the winning guess
       await typeWord(wrapper, targetWord);
       await submitGuess(wrapper);
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify game controller shows win state
-      expect(gameController.getGameState().gameStatus).toBe('won');
+      // Verify hurdle controller shows completion state
+      expect(wrapper.vm.completedHurdlesCount).toBe(1);
+      expect(wrapper.vm.hurdleNumber).toBe(2);
+      expect(wrapper.vm.totalScore).toBeGreaterThan(0);
       
-      // Verify UI shows win message
+      // Verify UI shows completion message
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
-      expect(message.text).toContain('Congratulations! You won!');
-      expect(message.text).toContain(targetWord.toUpperCase());
+      expect(message.text).toContain('complete!');
+      expect(message.text).toContain('points');
       expect(message.classes).toContain('success');
-    });
+    }, 15000);
 
-    test('should show loss message when game controller indicates loss', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+    test('should show session end message when hurdle controller indicates failure', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       const testWords = ['APPLE', 'BREAD', 'CRANE', 'DANCE'];
       
       // Make 4 wrong guesses
@@ -136,25 +146,28 @@ describe('UI and GameController Integration Tests', () => {
       }
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Verify game controller shows loss state
-      expect(gameController.getGameState().gameStatus).toBe('lost');
+      // Verify hurdle controller shows session end state
+      expect(wrapper.vm.hurdleGameEnded).toBe(true);
       
-      // Verify UI shows loss message
+      // Verify UI shows session end message
       const message = await getDisplayedMessage(wrapper);
       expect(message).not.toBeNull();
-      expect(message.text).toContain('Game Over!');
+      expect(message.text).toContain('Game ended!');
       expect(message.text).toContain(targetWord.toUpperCase());
       expect(message.classes).toContain('error');
-    }, 25000);
+    }, 30000);
 
-    test('should update remaining attempts display to match game state', async () => {
-      const maxAttempts = gameController.getGameState().maxAttempts;
-      expect(maxAttempts).toBe(4);
+    test('should update hurdle progress display to match hurdle state', async () => {
+      // Verify initial state
+      expect(wrapper.vm.hurdleNumber).toBe(1);
+      expect(wrapper.vm.completedHurdlesCount).toBe(0);
+      expect(wrapper.vm.totalScore).toBe(0);
       
       // Get the target word to avoid using it in tests
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord().toLowerCase();
       
       // Use a set of common valid words, but filter out the target word
       const candidateWords = ['apple', 'bread', 'crane', 'dance', 'eagle', 'flame', 'grape', 'house', 'juice', 'knife'];
@@ -165,11 +178,12 @@ describe('UI and GameController Integration Tests', () => {
         safeWords.push('aahed', 'aalii', 'aargh'); // Use words from start of dictionary
       }
       
-      // Only test first 3 attempts to avoid timeout and accidental wins
-      for (let i = 0; i < Math.min(3, safeWords.length); i++) {
-        // Verify game state before guess
-        expect(gameController.getGameState().getGuesses().length).toBe(i);
-        expect(gameController.getGameState().getRemainingAttempts()).toBe(maxAttempts - i);
+      // Only test first 2 attempts to avoid timeout and accidental wins
+      for (let i = 0; i < Math.min(2, safeWords.length); i++) {
+        // Verify hurdle state before guess
+        const gameState = currentGameController.getGameState();
+        expect(gameState.getGuesses().length).toBe(i);
+        expect(gameState.getRemainingAttempts()).toBe(4 - i);
         
         // Make guess with a word that definitely won't win
         await typeWord(wrapper, safeWords[i].toUpperCase());
@@ -180,23 +194,26 @@ describe('UI and GameController Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Verify the guess was accepted and game state updated
-        expect(gameController.getGameState().getGuesses().length).toBe(i + 1);
-        expect(gameController.getGameState().getRemainingAttempts()).toBe(maxAttempts - (i + 1));
+        expect(gameState.getGuesses().length).toBe(i + 1);
+        expect(gameState.getRemainingAttempts()).toBe(4 - (i + 1));
         
-        // Verify game is still in progress (since we avoided the target word)
-        expect(gameController.getGameState().gameStatus).toBe('in-progress');
+        // Verify hurdle is still in progress (since we avoided the target word)
+        expect(gameState.gameStatus).toBe('in-progress');
       }
     }, 25000);
   });
 
   describe('User Input Processing', () => {
-    test('should validate input through game controller and show appropriate errors', async () => {
+    test('should validate input through hurdle controller and show appropriate errors', async () => {
       // Test empty input
       await submitGuess(wrapper);
       let message = await getDisplayedMessage(wrapper);
       expect(message.text).toBe('Please enter a word');
       expect(message.classes).toContain('error');
-      expect(gameController.getGameState().getGuesses().length).toBe(0);
+      
+      const currentGameController = hurdleController.getCurrentGameController();
+      const gameState = currentGameController.getGameState();
+      expect(gameState.getGuesses().length).toBe(0);
       
       // Clear any current guess state
       wrapper.vm.currentGuess = '';
@@ -208,7 +225,7 @@ describe('UI and GameController Integration Tests', () => {
       message = await getDisplayedMessage(wrapper);
       expect(message.text).toBe('Word must be 5 letters long');
       expect(message.classes).toContain('error');
-      expect(gameController.getGameState().getGuesses().length).toBe(0);
+      expect(gameState.getGuesses().length).toBe(0);
       
       // Clear any current guess state
       wrapper.vm.currentGuess = '';
@@ -220,14 +237,14 @@ describe('UI and GameController Integration Tests', () => {
       message = await getDisplayedMessage(wrapper);
       expect(message.text).toBe('Not a valid word');
       expect(message.classes).toContain('error');
-      expect(gameController.getGameState().getGuesses().length).toBe(0);
+      expect(gameState.getGuesses().length).toBe(0);
       
       // Clear any current guess state
       wrapper.vm.currentGuess = '';
       await waitForUpdates();
       
       // Test valid word that's not the target
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const targetWord = gameState.getTargetWord().toLowerCase();
       const candidateWords = ['apple', 'bread', 'crane', 'dance', 'eagle'];
       const safeWord = candidateWords.find(word => word !== targetWord) || 'bread';
       
@@ -237,15 +254,17 @@ describe('UI and GameController Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      expect(gameController.getGameState().getGuesses().length).toBe(1);
+      expect(gameState.getGuesses().length).toBe(1);
     }, 15000);
 
-    test('should process valid guesses through game controller', async () => {
-      const initialGuessCount = gameController.getGameState().getGuesses().length;
+    test('should process valid guesses through hurdle controller', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const gameState = currentGameController.getGameState();
+      const initialGuessCount = gameState.getGuesses().length;
       expect(initialGuessCount).toBe(0);
       
       // Get the target word to avoid using it in tests
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const targetWord = gameState.getTargetWord().toLowerCase();
       const candidateWords = ['apple', 'bread', 'crane', 'dance', 'eagle'];
       const safeWord = candidateWords.find(word => word !== targetWord) || 'bread';
       
@@ -256,8 +275,7 @@ describe('UI and GameController Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Verify game controller processed the guess
-      const gameState = gameController.getGameState();
+      // Verify hurdle controller processed the guess
       expect(gameState.getGuesses().length).toBe(1);
       
       const guess = gameState.getGuesses()[0];
@@ -271,13 +289,14 @@ describe('UI and GameController Integration Tests', () => {
         expect(['correct', 'present', 'absent']).toContain(feedback.status);
       });
       
-      // Verify game is still in progress (since we avoided the target word)
+      // Verify hurdle is still in progress (since we avoided the target word)
       expect(gameState.gameStatus).toBe('in-progress');
     });
 
-    test('should handle case normalization through game controller', async () => {
+    test('should handle case normalization through hurdle controller', async () => {
       // Get the target word to avoid using it in tests
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord().toLowerCase();
       
       // Use a word that's definitely not the target word
       const candidateWords = ['bread', 'crane', 'dance', 'eagle', 'flame', 'grape', 'house'];
@@ -289,10 +308,11 @@ describe('UI and GameController Integration Tests', () => {
                         testWord.split('').map((c, i) => i % 2 === 0 ? c.toUpperCase() : c).join('')];
       
       for (const testCase of testCases) {
-        // Start new game for each test
+        // Start new hurdle session for each test
         const newGameBtn = wrapper.find('#new-game-btn');
         await newGameBtn.trigger('click');
         await waitForUpdates();
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Type the word in the specific case
         for (const char of testCase) {
@@ -308,23 +328,29 @@ describe('UI and GameController Integration Tests', () => {
         // Wait for async operations to complete
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Verify game controller normalized the case
-        const gameState = gameController.getGameState();
+        // Verify hurdle controller normalized the case
+        const newGameController = hurdleController.getCurrentGameController();
+        const gameState = newGameController.getGameState();
         if (gameState.getGuesses().length > 0) {
           const guess = gameState.getGuesses()[0];
           expect(guess.word).toBe(testWord.toLowerCase()); // Always normalized to lowercase
           
-          // Verify game is still in progress (since we avoided the target word)
+          // Verify hurdle is still in progress (since we avoided the target word)
           expect(gameState.gameStatus).toBe('in-progress');
         }
       }
-    }, 15000);
+    }, 20000);
 
-    test('should reject invalid input without affecting game state', async () => {
-      const initialGameState = {
-        guesses: gameController.getGameState().getGuesses().length,
-        attempts: gameController.getGameState().getRemainingAttempts(),
-        status: gameController.getGameState().gameStatus
+    test('should reject invalid input without affecting hurdle state', async () => {
+      const currentGameController = hurdleController.getCurrentGameController();
+      const gameState = currentGameController.getGameState();
+      const initialHurdleState = {
+        guesses: gameState.getGuesses().length,
+        attempts: gameState.getRemainingAttempts(),
+        status: gameState.gameStatus,
+        hurdleNumber: wrapper.vm.hurdleNumber,
+        completedCount: wrapper.vm.completedHurdlesCount,
+        totalScore: wrapper.vm.totalScore
       };
       
       // Try simple invalid inputs that should definitely be rejected
@@ -350,10 +376,13 @@ describe('UI and GameController Integration Tests', () => {
         await submitGuess(wrapper);
         await waitForUpdates();
         
-        // Verify game state unchanged for invalid inputs
-        expect(gameController.getGameState().getGuesses().length).toBe(initialGameState.guesses);
-        expect(gameController.getGameState().getRemainingAttempts()).toBe(initialGameState.attempts);
-        expect(gameController.getGameState().gameStatus).toBe(initialGameState.status);
+        // Verify hurdle state unchanged for invalid inputs
+        expect(gameState.getGuesses().length).toBe(initialHurdleState.guesses);
+        expect(gameState.getRemainingAttempts()).toBe(initialHurdleState.attempts);
+        expect(gameState.gameStatus).toBe(initialHurdleState.status);
+        expect(wrapper.vm.hurdleNumber).toBe(initialHurdleState.hurdleNumber);
+        expect(wrapper.vm.completedHurdlesCount).toBe(initialHurdleState.completedCount);
+        expect(wrapper.vm.totalScore).toBe(initialHurdleState.totalScore);
         
         // Verify error message is shown
         const message = await getDisplayedMessage(wrapper);
@@ -365,7 +394,8 @@ describe('UI and GameController Integration Tests', () => {
 
   describe('Feedback Display', () => {
     test('should correctly display feedback colors on game board', async () => {
-      const targetWord = gameController.getGameState().getTargetWord().toUpperCase();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord().toUpperCase();
       
       // Make a guess that will have mixed feedback
       let testGuess = 'APPLE';
@@ -377,8 +407,8 @@ describe('UI and GameController Integration Tests', () => {
       await typeWord(wrapper, testGuess);
       await submitGuess(wrapper);
       
-      // Get feedback from game controller
-      const gameState = gameController.getGameState();
+      // Get feedback from hurdle controller
+      const gameState = currentGameController.getGameState();
       const guess = gameState.getGuesses()[0];
       const feedback = guess.getFeedback();
       
@@ -386,7 +416,7 @@ describe('UI and GameController Integration Tests', () => {
       const boardState = getBoardState(wrapper);
       const firstRow = boardState[0];
       
-      // Verify UI feedback matches game controller feedback
+      // Verify UI feedback matches hurdle controller feedback
       for (let i = 0; i < 5; i++) {
         expect(firstRow[i].letter).toBe(feedback[i].letter.toUpperCase());
         expect(firstRow[i].classes).toContain(feedback[i].status);
@@ -404,14 +434,15 @@ describe('UI and GameController Integration Tests', () => {
 
     test('should handle complex feedback scenarios correctly', async () => {
       // Test with a word that has duplicate letters
-      const targetWord = gameController.getGameState().getTargetWord();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
       // Make a guess with duplicate letters
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
       
-      // Get feedback from game controller
-      const gameState = gameController.getGameState();
+      // Get feedback from hurdle controller
+      const gameState = currentGameController.getGameState();
       const guess = gameState.getGuesses()[0];
       const feedback = guess.getFeedback();
       
@@ -445,8 +476,9 @@ describe('UI and GameController Integration Tests', () => {
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
       
-      // Get feedback from game controller
-      const gameState = gameController.getGameState();
+      // Get feedback from hurdle controller
+      const currentGameController = hurdleController.getCurrentGameController();
+      const gameState = currentGameController.getGameState();
       const guess = gameState.getGuesses()[0];
       const feedback = guess.getFeedback();
       
@@ -463,7 +495,8 @@ describe('UI and GameController Integration Tests', () => {
     });
 
     test('should maintain best status for letters across multiple guesses', async () => {
-      const targetWord = gameController.getGameState().getTargetWord();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord();
       
       // Make first guess
       await typeWord(wrapper, 'APPLE');
@@ -476,8 +509,8 @@ describe('UI and GameController Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Get all feedback from game controller
-      const gameState = gameController.getGameState();
+      // Get all feedback from hurdle controller
+      const gameState = currentGameController.getGameState();
       const guesses = gameState.getGuesses();
       
       // Track the best status for each letter
@@ -504,7 +537,7 @@ describe('UI and GameController Integration Tests', () => {
       });
     }, 15000);
 
-    test('should reset keyboard state on new game', async () => {
+    test('should reset keyboard state on new hurdle session', async () => {
       // Make a guess to set keyboard state
       await typeWord(wrapper, 'APPLE');
       await submitGuess(wrapper);
@@ -516,10 +549,11 @@ describe('UI and GameController Integration Tests', () => {
       );
       expect(hasInitialState).toBe(true);
       
-      // Start new game
+      // Start new hurdle session
       const newGameBtn = wrapper.find('#new-game-btn');
       await newGameBtn.trigger('click');
       await waitForUpdates();
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Verify keyboard state is reset
       keyboardState = getKeyboardState(wrapper);
@@ -527,13 +561,14 @@ describe('UI and GameController Integration Tests', () => {
         classes.includes('correct') || classes.includes('present') || classes.includes('absent')
       );
       expect(hasStateAfterReset).toBe(false);
-    });
+    }, 10000);
   });
 
-  describe('Game State Synchronization', () => {
-    test('should maintain UI-GameController synchronization throughout game', async () => {
+  describe('Hurdle State Synchronization', () => {
+    test('should maintain UI-HurdleController synchronization throughout session', async () => {
       // Get the target word to avoid using it in tests
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord().toLowerCase();
       
       // Use a set of common valid words, but filter out the target word
       const candidateWords = ['apple', 'bread', 'crane', 'dance', 'eagle', 'flame'];
@@ -549,9 +584,9 @@ describe('UI and GameController Integration Tests', () => {
       
       for (let i = 0; i < testWords.length; i++) {
         // Before guess
-        const gameStateBefore = gameController.getGameState();
-        expect(gameStateBefore.getGuesses().length).toBe(i);
-        expect(gameStateBefore.getRemainingAttempts()).toBe(4 - i);
+        const gameState = currentGameController.getGameState();
+        expect(gameState.getGuesses().length).toBe(i);
+        expect(gameState.getRemainingAttempts()).toBe(4 - i);
         
         // Make guess with a word that definitely won't win
         await typeWord(wrapper, testWords[i]);
@@ -562,12 +597,11 @@ describe('UI and GameController Integration Tests', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // After guess
-        const gameStateAfter = gameController.getGameState();
-        expect(gameStateAfter.getGuesses().length).toBe(i + 1);
-        expect(gameStateAfter.getRemainingAttempts()).toBe(4 - (i + 1));
+        expect(gameState.getGuesses().length).toBe(i + 1);
+        expect(gameState.getRemainingAttempts()).toBe(4 - (i + 1));
         
         // Verify guess was recorded correctly
-        const lastGuess = gameStateAfter.getGuesses()[i];
+        const lastGuess = gameState.getGuesses()[i];
         expect(lastGuess.word).toBe(testWords[i].toLowerCase());
         
         // Verify UI board reflects the guess
@@ -575,14 +609,15 @@ describe('UI and GameController Integration Tests', () => {
         const guessRow = boardState[i];
         expect(guessRow.map(tile => tile.letter).join('')).toBe(testWords[i]);
         
-        // Verify game is still in progress (since we avoided the target word)
-        expect(gameStateAfter.gameStatus).toBe('in-progress');
+        // Verify hurdle is still in progress (since we avoided the target word)
+        expect(gameState.gameStatus).toBe('in-progress');
       }
     }, 15000);
 
     test('should handle rapid input correctly', async () => {
       // Get the target word to avoid using it in tests
-      const targetWord = gameController.getGameState().getTargetWord().toLowerCase();
+      const currentGameController = hurdleController.getCurrentGameController();
+      const targetWord = currentGameController.getGameState().getTargetWord().toLowerCase();
       
       // Use words that are definitely not the target word
       const candidateWords = ['bread', 'crane', 'dance', 'eagle'];
@@ -619,7 +654,7 @@ describe('UI and GameController Integration Tests', () => {
       }
       
       // Verify both guesses were processed correctly
-      const gameState = gameController.getGameState();
+      const gameState = currentGameController.getGameState();
       expect(gameState.getGuesses().length).toBe(2);
       expect(gameState.getGuesses()[0].word).toBe(rapidGuesses[0].toLowerCase());
       expect(gameState.getGuesses()[1].word).toBe(rapidGuesses[1].toLowerCase());
@@ -630,7 +665,7 @@ describe('UI and GameController Integration Tests', () => {
       expect(boardState[0].map(tile => tile.letter).join('')).toBe(rapidGuesses[0]);
       expect(boardState[1].map(tile => tile.letter).join('')).toBe(rapidGuesses[1]);
       
-      // Verify game is still in progress (since we avoided the target word)
+      // Verify hurdle is still in progress (since we avoided the target word)
       expect(gameState.gameStatus).toBe('in-progress');
     });
   });

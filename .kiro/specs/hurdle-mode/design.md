@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hurdle Mode transforms the existing single-word Wordle-style game into an endless chain of word puzzles with a sophisticated scoring system. The design extends the current GameController and GameState architecture to support continuous gameplay, automatic progression between puzzles, and comprehensive score tracking. The implementation maintains clean separation of concerns while integrating seamlessly with the existing Vue.js frontend and game mechanics.
+Hurdle Mode is the default and only game mode that transforms the traditional single-word Wordle-style game into an endless chain of word puzzles with a sophisticated scoring system. The design extends the current GameController and GameState architecture to support continuous gameplay, automatic progression between puzzles, and comprehensive score tracking. The implementation removes all legacy single-word game mode code and UI elements, creating a streamlined hurdle-focused experience.
 
 ## Architecture
 
@@ -180,18 +180,16 @@ class HurdleController {
 
 ### Vue.js Frontend Integration
 
-App.vue will be extended with hurdle mode detection and UI components:
+App.vue will be simplified to always use hurdle mode:
 
 ```javascript
 // In App.vue setup()
 const hurdleController = ref(null)
-const isHurdleMode = ref(false)
 const hurdleState = ref(null)
 
-const startHurdleMode = async () => {
+const initializeGame = async () => {
   hurdleController.value = new HurdleController(dictionary)
   const session = await hurdleController.value.startHurdleMode()
-  isHurdleMode.value = true
   hurdleState.value = hurdleController.value.getHurdleState()
 }
 ```

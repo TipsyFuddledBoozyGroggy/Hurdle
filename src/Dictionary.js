@@ -1,5 +1,5 @@
 /**
- * Dictionary module for Hard Wordle
+ * Dictionary module for Hurdle
  * Manages the word dictionary and provides validation and selection methods
  */
 
@@ -142,9 +142,10 @@ class Dictionary {
 
   /**
    * Get a random uncommon word from WordsAPI or fallback to local dictionary
+   * @param {Object} frequencyRange - Optional frequency range {min, max}
    * @returns {Promise<string>} A random 5-letter uncommon word
    */
-  async getRandomWord() {
+  async getRandomWord(frequencyRange = null) {
     // Check API limit before making request
     if (this.apiTracker && !this.apiTracker.shouldUseAPI()) {
       if (!this.limitExceededMessageShown) {
@@ -158,7 +159,7 @@ class Dictionary {
     // Try to get an uncommon word from WordsAPI first
     if (this.wordsApiEnabled && this.apiRetryCount < this.maxRetries) {
       try {
-        const uncommonWord = await this.getRandomUncommonWordFromAPI();
+        const uncommonWord = await this.getRandomUncommonWordFromAPI(frequencyRange);
         if (uncommonWord) {
           this.apiRetryCount = 0; // Reset retry count on success
           return uncommonWord;
@@ -331,13 +332,13 @@ class Dictionary {
    * Get a random uncommon 5-letter word from WordsAPI with definition validation
    * @returns {Promise<string|null>} An uncommon word with definitions or null if failed
    */
-  async getRandomUncommonWordFromAPI() {
+  async getRandomUncommonWordFromAPI(frequencyRange = null) {
     try {
       // Create properly encoded URL parameters
       const params = new URLSearchParams({
         letterPattern: '^[a-zA-Z]{5}$',  // Only letters, exactly 5 characters
-        frequencyMin: '1',
-        frequencyMax: '3',
+        frequencyMin: freq.min.toString(),
+        frequencyMax: freq.max.toString(),
         random: 'true'
       });
       
