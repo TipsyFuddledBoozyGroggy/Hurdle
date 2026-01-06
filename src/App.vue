@@ -1353,7 +1353,10 @@ export default {
       if (setting === 'maxGuesses') {
         maxGuesses.value = value;
       } else if (setting === 'reset') {
+        // Update all reactive values when reset
         maxGuesses.value = gameConfig.getMaxGuesses();
+        // Force UI update for all settings
+        configVersion.value++;
       }
       
       // Force immediate update of reactive properties

@@ -199,7 +199,7 @@ export default {
 
     const resetSettings = () => {
       gameConfig.resetToDefaults();
-      loadSettings();
+      loadSettings(); // This will update all reactive values including hardMode
       emit('configChanged', 'reset', null);
     };
 

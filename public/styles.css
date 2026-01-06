@@ -347,11 +347,16 @@ button:disabled {
 
 .message-area {
   min-height: 25px;
+  height: 25px;
   text-align: center;
   font-size: 0.9rem;
   padding: 8px;
   border-radius: 4px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
 }
 
 .message-area.error {
@@ -489,6 +494,7 @@ button:disabled {
     font-size: 0.8rem;
     padding: 6px;
     min-height: 20px;
+    height: 20px;
   }
   
   #definition-area {
@@ -592,6 +598,7 @@ button:disabled {
     font-size: 0.75rem;
     padding: 5px;
     min-height: 18px;
+    height: 18px;
   }
   
   #definition-area {
@@ -1331,5 +1338,25 @@ button:disabled {
   .hard-mode-indicator {
     font-size: 0.65rem;
     padding: 1px 3px;
+  }
+}
+/* Additional mobile message area fixes */
+@media (max-width: 480px) {
+  .message-area {
+    font-size: 0.75rem;
+    padding: 4px;
+    min-height: 16px;
+    height: 16px;
+    line-height: 1.1;
+  }
+}
+
+@media (max-width: 400px) {
+  .message-area {
+    font-size: 0.7rem;
+    padding: 3px;
+    min-height: 14px;
+    height: 14px;
+    line-height: 1.0;
   }
 }

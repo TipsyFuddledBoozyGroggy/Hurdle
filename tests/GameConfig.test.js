@@ -19,31 +19,39 @@ describe('GameConfig', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
+    // Ensure localStorage returns null by default (no existing config)
     localStorageMock.getItem.mockReturnValue(null);
+    // Reset any module cache to ensure fresh instances
+    jest.resetModules();
   });
 
   describe('constructor', () => {
     it('should initialize with default configuration', () => {
+      // Explicitly ensure localStorage returns null for this test
       localStorageMock.getItem.mockReturnValue(null);
       const config = new GameConfig();
       expect(config.getMaxGuesses()).toBe(4);
       expect(config.getDifficulty()).toBe('medium');
       expect(config.getShowDefinitions()).toBe(true);
+      expect(config.getHardMode()).toBe(false);
     });
 
     it('should load existing configuration from localStorage', () => {
       const existingConfig = {
         maxGuesses: 6,
         difficulty: 'hard',
-        showDefinitions: false
+        showDefinitions: false,
+        hardMode: true
       };
       
+      // Mock localStorage to return the existing config for this test only
       localStorageMock.getItem.mockReturnValue(JSON.stringify(existingConfig));
       
       const config = new GameConfig();
       expect(config.getMaxGuesses()).toBe(6);
       expect(config.getDifficulty()).toBe('hard');
       expect(config.getShowDefinitions()).toBe(false);
+      expect(config.getHardMode()).toBe(true);
     });
   });
 
@@ -121,19 +129,53 @@ describe('GameConfig', () => {
     });
   });
 
+  describe('hardMode configuration', () => {
+    beforeEach(() => {
+      gameConfig = new GameConfig();
+    });
+
+    it('should set hard mode flag', () => {
+      gameConfig.setHardMode(true);
+      expect(gameConfig.getHardMode()).toBe(true);
+      
+      gameConfig.setHardMode(false);
+      expect(gameConfig.getHardMode()).toBe(false);
+    });
+
+    it('should convert values to boolean', () => {
+      gameConfig.setHardMode('true');
+      expect(gameConfig.getHardMode()).toBe(true);
+      
+      gameConfig.setHardMode(0);
+      expect(gameConfig.getHardMode()).toBe(false);
+      
+      gameConfig.setHardMode(1);
+      expect(gameConfig.getHardMode()).toBe(true);
+    });
+
+    it('should default to false', () => {
+      // Create a fresh instance to test default value
+      const testConfig = new GameConfig();
+      expect(testConfig.getHardMode()).toBe(false);
+    });
+  });
+
   describe('persistence', () => {
     beforeEach(() => {
       gameConfig = new GameConfig();
     });
 
     it('should save configuration to localStorage', () => {
-      gameConfig.setMaxGuesses(5);
+      // Create a fresh instance for this test
+      const testConfig = new GameConfig();
+      testConfig.setMaxGuesses(5);
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'hurdle-game-config',
         JSON.stringify({
           maxGuesses: 5,
           difficulty: 'medium',
-          showDefinitions: true
+          showDefinitions: true,
+          hardMode: false
         })
       );
     });
@@ -176,7 +218,8 @@ describe('GameConfig', () => {
       expect(settings).toEqual({
         maxGuesses: 4,
         difficulty: 'medium',
-        showDefinitions: true
+        showDefinitions: true,
+        hardMode: false
       });
     });
   });
