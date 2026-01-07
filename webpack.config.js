@@ -1,6 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { VueLoaderPlugin } = require('vue-loader');
 
 module.exports = {
@@ -52,13 +51,8 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './public/index.html',
       filename: 'index.html'
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        { from: 'public/words.json', to: 'words.json' },
-        { from: 'public/words_uncommon.json', to: 'words_uncommon.json' }
-      ]
     })
+    // Removed CopyWebpackPlugin for JSON files - using WordsAPI exclusively
   ],
   resolve: {
     extensions: ['.js', '.vue', '.json'],

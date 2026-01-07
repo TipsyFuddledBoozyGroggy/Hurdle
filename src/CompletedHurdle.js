@@ -144,3 +144,6 @@ class CompletedHurdle {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CompletedHurdle;
 }
+
+// ES6 export for modern bundlers
+export default CompletedHurdle;

@@ -58,3 +58,6 @@ class Guess {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = Guess;
 }
+
+// ES6 export for modern bundlers
+export default Guess;

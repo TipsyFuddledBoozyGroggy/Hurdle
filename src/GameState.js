@@ -104,3 +104,6 @@ class GameState {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = GameState;
 }
+
+// ES6 export for modern bundlers
+export default GameState;

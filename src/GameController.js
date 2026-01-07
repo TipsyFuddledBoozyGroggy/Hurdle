@@ -3,11 +3,11 @@
  * Orchestrates game flow and enforces game rules
  */
 
-// Import required modules
-const GameState = require('./GameState');
-const FeedbackGenerator = require('./FeedbackGenerator');
-const Guess = require('./Guess');
-const HardModeValidator = require('./HardModeValidator');
+// Import required modules using ES6 imports
+import GameState from './GameState.js';
+import FeedbackGenerator from './FeedbackGenerator.js';
+import Guess from './Guess.js';
+import HardModeValidator from './HardModeValidator.js';
 
 /**
  * GuessResult type definition
@@ -47,7 +47,9 @@ class GameController {
    * @returns {Promise<GameState>} The new game state
    */
   async startNewGame(maxGuesses = 4, frequencyRange = null) {
+    console.log(`GameController.startNewGame called with maxGuesses: ${maxGuesses}, frequencyRange:`, frequencyRange);
     const targetWord = await this.dictionary.getRandomWord(frequencyRange);
+    console.log(`GameController got target word: ${targetWord}`);
     this.gameState = new GameState(targetWord, maxGuesses);
     
     // Reset hard mode validator if enabled

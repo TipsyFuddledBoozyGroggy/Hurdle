@@ -327,3 +327,6 @@ class HurdleState {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = HurdleState;
 }
+
+// ES6 export for modern bundlers
+export default HurdleState;

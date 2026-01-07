@@ -81,3 +81,6 @@ class FeedbackGenerator {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = FeedbackGenerator;
 }
+
+// ES6 export for modern bundlers
+export default FeedbackGenerator;

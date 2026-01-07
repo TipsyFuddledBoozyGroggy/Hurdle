@@ -258,19 +258,38 @@ export default {
     // Load current settings from GameConfig into local state
     const loadSettings = () => {
       const settings = gameConfig.getAllSettings();
+      console.log('Loading settings from GameConfig:', settings);
+      
       maxGuesses.value = settings.maxGuesses;
       difficulty.value = settings.difficulty;
       showDefinitions.value = settings.showDefinitions;
       hardMode.value = settings.hardMode;
+      
+      console.log('Local state after loading:');
+      console.log('- Hard mode:', hardMode.value);
+      console.log('- Show definitions:', showDefinitions.value);
+      console.log('- Difficulty:', difficulty.value);
     };
 
     // Save all settings to GameConfig and emit changes
     const saveSettings = () => {
+      console.log('Saving settings:');
+      console.log('- Max guesses:', maxGuesses.value);
+      console.log('- Difficulty:', difficulty.value);
+      console.log('- Show definitions:', showDefinitions.value);
+      console.log('- Hard mode:', hardMode.value);
+      
       // Apply all settings at once
       gameConfig.setMaxGuesses(maxGuesses.value);
       gameConfig.setDifficulty(difficulty.value);
       gameConfig.setShowDefinitions(showDefinitions.value);
       gameConfig.setHardMode(hardMode.value);
+      
+      // Verify settings were saved
+      console.log('Settings after save:');
+      console.log('- Hard mode from config:', gameConfig.getHardMode());
+      console.log('- Show definitions from config:', gameConfig.getShowDefinitions());
+      console.log('- Difficulty from config:', gameConfig.getDifficulty());
       
       // Emit single config changed event with all settings
       emit('configChanged', 'all', {

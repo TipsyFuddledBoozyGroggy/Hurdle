@@ -44,7 +44,7 @@
                   Score: {{ totalScore }}
                 </v-chip>
                 <v-chip 
-                  v-if="gameConfig.getHardMode()" 
+                  v-if="hardMode" 
                   color="error" 
                   variant="outlined" 
                   size="small"
@@ -272,6 +272,7 @@ import FeedbackGenerator from './FeedbackGenerator.js';
 import GameConfig from './GameConfig.js';
 import ConfigPage from './ConfigPage.vue';
 import GameRulesPage from './GameRulesPage.vue';
+import { WORDS_API_CONFIG } from './config.js';
 
 export default {
   name: 'App',
@@ -295,6 +296,7 @@ export default {
     const showRulesPage = ref(false);
     const configVersion = ref(0); // Force reactivity for config changes
     const maxGuesses = ref(gameConfig.getMaxGuesses()); // Reactive max guesses
+    const hardMode = ref(gameConfig.getHardMode()); // Reactive hard mode
     
     const currentGuess = ref('');
     const message = ref('');
@@ -655,11 +657,11 @@ export default {
                   tile.style.backgroundColor = '';
                   // Add status class which will provide the new background color
                   tile.classList.add(feedback[i].status);
-                  // Small delay to ensure status class background is applied before removing border
+                  // Delay removing border until after the flip is complete to maintain white border longer
                   setTimeout(() => {
                     // Now remove the border inline style to let status class border take effect
                     tile.style.borderColor = '';
-                  }, 10); // 10ms delay to ensure smooth transition
+                  }, 200); // 200ms delay to keep white border visible longer during flip
                 }
               }, 330); // 330ms after THIS tile starts flipping
               
@@ -694,11 +696,118 @@ export default {
       const targetWord = gameState.value?.getTargetWord()?.toUpperCase() || 'UNKNOWN';
       
       if (won) {
+        // Add celebration animations for correct word
+        await triggerCelebrationAnimation();
+        
         // Handle hurdle completion
         await handleHurdleCompletion(gameState.value);
       } else {
         // Handle hurdle failure
         await handleHurdleFailure();
+      }
+    };
+
+    const triggerCelebrationAnimation = async () => {
+      try {
+        // Get the winning row (last completed guess)
+        const guesses = gameState.value?.getGuesses() || [];
+        if (guesses.length === 0) return;
+        
+        const winningRowIndex = guesses.length - 1;
+        const winningRow = document.querySelector(`.guess-row:nth-child(${winningRowIndex + 1})`);
+        
+        if (!winningRow) {
+          console.warn('Winning row not found for celebration animation');
+          return;
+        }
+        
+        const tiles = winningRow.querySelectorAll('.letter-tile.correct');
+        
+        if (tiles.length === 0) {
+          console.warn('No correct tiles found for celebration animation');
+          return;
+        }
+        
+        // Add celebration class to the winning row
+        winningRow.classList.add('celebrating');
+        
+        // Add celebration animation to each correct tile with staggered timing
+        tiles.forEach((tile, index) => {
+          setTimeout(() => {
+            tile.classList.add('celebrating');
+            
+            // Create confetti particles around the tile
+            createConfettiParticles(tile);
+          }, index * 100); // Stagger by 100ms per tile
+        });
+        
+        // Create success message animation
+        const messageArea = document.querySelector('.message-alert');
+        if (messageArea) {
+          messageArea.classList.add('success-message');
+        }
+        
+        // Wait for animations to complete
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Clean up animation classes
+        winningRow.classList.remove('celebrating');
+        tiles.forEach(tile => {
+          tile.classList.remove('celebrating');
+        });
+        
+        if (messageArea) {
+          messageArea.classList.remove('success-message');
+        }
+        
+        // Remove any remaining confetti particles
+        const particles = document.querySelectorAll('.celebration-particle');
+        particles.forEach(particle => particle.remove());
+        
+      } catch (error) {
+        console.error('Error during celebration animation:', error);
+        // Don't let animation errors break the game flow
+      }
+    };
+
+    const createConfettiParticles = (tile) => {
+      try {
+        const rect = tile.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Create 8 particles around the tile
+        for (let i = 0; i < 8; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'celebration-particle';
+          
+          // Position particle at tile center
+          particle.style.position = 'fixed';
+          particle.style.left = centerX + 'px';
+          particle.style.top = centerY + 'px';
+          particle.style.zIndex = '9999';
+          
+          // Random direction and distance
+          const angle = (i / 8) * 2 * Math.PI;
+          const distance = 50 + Math.random() * 30;
+          const endX = centerX + Math.cos(angle) * distance;
+          const endY = centerY + Math.sin(angle) * distance - 50; // Upward bias
+          
+          // Set CSS custom properties for animation
+          particle.style.setProperty('--end-x', endX + 'px');
+          particle.style.setProperty('--end-y', endY + 'px');
+          
+          document.body.appendChild(particle);
+          
+          // Remove particle after animation
+          setTimeout(() => {
+            if (particle.parentNode) {
+              particle.parentNode.removeChild(particle);
+            }
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('Error creating confetti particles:', error);
       }
     };
     
@@ -727,8 +836,8 @@ export default {
         const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
           method: 'GET',
           headers: {
-            'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
-            'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+            'X-RapidAPI-Key': WORDS_API_CONFIG.API_KEY, // Your WordsAPI key
+            'X-RapidAPI-Host': WORDS_API_CONFIG.HOST
           }
         });
         
@@ -852,9 +961,30 @@ export default {
         // Start hurdle mode session with configuration
         // Use reactive values that are updated immediately in handleConfigChange
         const maxGuessesValue = maxGuesses.value;
+        
+        // Force fresh config reload to ensure we get the latest settings from localStorage
+        console.log('Reloading config from localStorage before starting game...');
+        gameConfig.config = gameConfig.loadConfig();
+        
+        // Get fresh frequency range from config after reload
+        const currentDifficulty = gameConfig.getDifficulty();
         const frequencyRange = gameConfig.getFrequencyRange();
-        const hardMode = gameConfig.getHardMode();
-        const session = await hurdleController.value.startHurdleMode(maxGuessesValue, frequencyRange, hardMode);
+        const hardModeValue = hardMode.value; // Use reactive value
+        
+        console.log('=== STARTING HURDLE MODE DEBUG ===');
+        console.log('- Current difficulty from config:', currentDifficulty);
+        console.log('- Max guesses:', maxGuessesValue);
+        console.log('- Frequency range from config:', frequencyRange);
+        console.log('- Expected frequency for', currentDifficulty + ':', 
+          currentDifficulty === 'easy' ? '{ min: 5.5, max: 7.0 }' :
+          currentDifficulty === 'medium' ? '{ min: 4.0, max: 5.49 }' :
+          currentDifficulty === 'hard' ? '{ min: 0, max: 4.0 }' : 'unknown');
+        console.log('- Hard mode (reactive):', hardModeValue);
+        console.log('- Hard mode (from config):', gameConfig.getHardMode());
+        console.log('- Show definitions:', gameConfig.getShowDefinitions());
+        console.log('=== END DEBUG ===');
+        
+        const session = await hurdleController.value.startHurdleMode(maxGuessesValue, frequencyRange, hardModeValue);
         
         // Update UI state
         hurdleGameEnded.value = false;
@@ -1534,8 +1664,8 @@ export default {
         const response = await fetch(`https://wordsapiv1.p.rapidapi.com/words/${word.toLowerCase()}`, {
           method: 'GET',
           headers: {
-            'X-RapidAPI-Key': 'e31ec18bc2mshcaa71bab98451fdp1490f9jsncceac7ee395b', // Your WordsAPI key
-            'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+            'X-RapidAPI-Key': WORDS_API_CONFIG.API_KEY, // Your WordsAPI key
+            'X-RapidAPI-Host': WORDS_API_CONFIG.HOST
           }
         });
         
@@ -1620,10 +1750,25 @@ export default {
     const handleConfigChange = (setting, value) => {
       console.log(`Configuration changed: ${setting} = ${value}`);
       
+      // Force reload config from localStorage to get fresh settings
+      gameConfig.config = gameConfig.loadConfig();
+      
       // Handle batch update of all settings
       if (setting === 'all') {
         // Update all reactive values from the settings object
         maxGuesses.value = value.maxGuesses;
+        hardMode.value = value.hardMode; // Update reactive hard mode
+        
+        // Log all the settings being applied
+        console.log('Applying all settings:', value);
+        console.log('Hard mode setting:', value.hardMode);
+        console.log('Show definitions setting:', value.showDefinitions);
+        console.log('Difficulty setting:', value.difficulty);
+        
+        // Verify the config was updated
+        console.log('Config after reload - difficulty:', gameConfig.getDifficulty());
+        console.log('Config after reload - frequency range:', gameConfig.getFrequencyRange());
+        
         // Force UI update for all settings
         configVersion.value++;
         
@@ -1635,10 +1780,12 @@ export default {
       } else if (setting === 'reset') {
         // Update all reactive values when reset
         maxGuesses.value = gameConfig.getMaxGuesses();
+        hardMode.value = gameConfig.getHardMode(); // Update reactive hard mode
         // Force UI update for all settings
         configVersion.value++;
         showMessage('Settings reset to defaults. Restarting game...', 'info');
       } else if (setting === 'hardMode') {
+        hardMode.value = value; // Update reactive hard mode
         const hardModeStatus = value ? 'enabled' : 'disabled';
         showMessage(`Hard mode ${hardModeStatus}. Restarting game...`, 'info');
       } else {
@@ -1712,6 +1859,7 @@ export default {
       showRulesPage,
       configVersion,
       maxGuesses,
+      hardMode, // Add reactive hard mode property
       currentGuess,
       message,
       messageType,
@@ -1782,6 +1930,7 @@ export default {
   font-weight: 700 !important;
 }
 
+/* Tile animations */
 .letter-tile.flipping {
   animation: flip 0.66s ease-in-out !important;
   transition: none !important;
@@ -1807,6 +1956,111 @@ export default {
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
+}
+
+/* Celebration animations for correct words */
+.letter-tile.correct.celebrating {
+  animation: celebrate 0.8s ease-in-out;
+}
+
+@keyframes celebrate {
+  0% { 
+    transform: scale(1) rotateZ(0deg);
+    box-shadow: 0 0 0 rgba(83, 141, 78, 0.5);
+  }
+  25% { 
+    transform: scale(1.1) rotateZ(-5deg);
+    box-shadow: 0 0 20px rgba(83, 141, 78, 0.8);
+  }
+  50% { 
+    transform: scale(1.15) rotateZ(5deg);
+    box-shadow: 0 0 30px rgba(83, 141, 78, 1);
+  }
+  75% { 
+    transform: scale(1.1) rotateZ(-2deg);
+    box-shadow: 0 0 20px rgba(83, 141, 78, 0.8);
+  }
+  100% { 
+    transform: scale(1) rotateZ(0deg);
+    box-shadow: 0 0 10px rgba(83, 141, 78, 0.6);
+  }
+}
+
+/* Row celebration animation */
+.guess-row.celebrating {
+  animation: rowCelebrate 1s ease-in-out;
+}
+
+@keyframes rowCelebrate {
+  0% { 
+    transform: translateY(0);
+  }
+  20% { 
+    transform: translateY(-5px);
+  }
+  40% { 
+    transform: translateY(0);
+  }
+  60% { 
+    transform: translateY(-3px);
+  }
+  80% { 
+    transform: translateY(0);
+  }
+  100% { 
+    transform: translateY(0);
+  }
+}
+
+/* Confetti-like particle effect */
+.celebration-particle {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(45deg, #538d4e, #6aaa64);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: confetti 1.5s ease-out forwards;
+  z-index: 9999;
+}
+
+@keyframes confetti {
+  0% {
+    transform: translateX(0) translateY(0) rotateZ(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(calc(var(--end-x, 0px) - var(--start-x, 0px))) 
+               translateY(calc(var(--end-y, 0px) - var(--start-y, 0px))) 
+               rotateZ(360deg) scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(calc(var(--end-x, 0px) - var(--start-x, 0px))) 
+               translateY(calc(var(--end-y, 0px) - var(--start-y, 0px) - 100px)) 
+               rotateZ(720deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* Success message animation */
+.success-message {
+  animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes successPop {
+  0% {
+    transform: scale(0.3) translateY(20px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05) translateY(-5px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Keyboard Styles */

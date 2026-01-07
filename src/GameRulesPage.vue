@@ -34,8 +34,8 @@
                     Instead of just solving one word, you'll face an endless series of hurdles, each more challenging than the last.
                   </p>
                   <v-alert type="info" variant="tonal" class="mb-3">
-                    <strong>Key Difference:</strong> Hurdle uses over 5,000 English words compared to other word games' smaller dictionaries, 
-                    making it much more challenging and educational.
+                    <strong>Key Difference:</strong> Hurdle uses WordsAPI's comprehensive English dictionary with thousands of words 
+                    across all difficulty levels, making it much more challenging and educational than games with limited word lists.
                   </v-alert>
                 </v-card-text>
               </v-card>
@@ -207,19 +207,24 @@
                       <h3 class="text-h6 mb-3">Difficulty Levels</h3>
                       <v-card variant="tonal" color="success" class="mb-2">
                         <v-card-text class="py-2">
-                          <strong>Easy:</strong> Common words (5000+ most frequent)
+                          <strong>Easy:</strong> Common words (high frequency in English)
                         </v-card-text>
                       </v-card>
                       <v-card variant="tonal" color="warning" class="mb-2">
                         <v-card-text class="py-2">
-                          <strong>Medium:</strong> Moderate words (balanced difficulty)
+                          <strong>Medium:</strong> Moderate words (balanced frequency)
                         </v-card-text>
                       </v-card>
                       <v-card variant="tonal" color="error" class="mb-2">
                         <v-card-text class="py-2">
-                          <strong>Hard:</strong> Rare words (challenging vocabulary)
+                          <strong>Hard:</strong> Rare words (low frequency, challenging vocabulary)
                         </v-card-text>
                       </v-card>
+                      
+                      <v-alert type="info" variant="tonal" class="mt-3">
+                        <strong>Powered by WordsAPI:</strong> Words are selected based on their frequency in English, 
+                        ensuring authentic difficulty progression and vocabulary learning.
+                      </v-alert>
                       
                       <h3 class="text-h6 mb-3 mt-4">Guess Limits</h3>
                       <p>Choose between 3, 4, 5, or 6 guesses per word. Fewer guesses = higher challenge!</p>

@@ -113,3 +113,6 @@ class ScoreCalculator {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = ScoreCalculator;
 }
+
+// ES6 export for modern bundlers
+export default ScoreCalculator;

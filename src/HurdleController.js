@@ -3,12 +3,13 @@
  * Orchestrates hurdle chains, manages transitions, and coordinates scoring
  */
 
-// Import required modules
-const GameController = require('./GameController');
-const HurdleState = require('./HurdleState');
-const HurdleSession = require('./HurdleSession');
-const CompletedHurdle = require('./CompletedHurdle');
-const ScoreCalculator = require('./ScoreCalculator');
+// Import required modules using ES6 imports
+import GameController from './GameController.js';
+import GameState from './GameState.js';
+import HurdleState from './HurdleState.js';
+import HurdleSession from './HurdleSession.js';
+import CompletedHurdle from './CompletedHurdle.js';
+import ScoreCalculator from './ScoreCalculator.js';
 
 /**
  * HurdleTransition type definition
@@ -145,22 +146,35 @@ class HurdleController {
       throw new Error('Previous answer is required for auto-guess');
     }
     
-    // Select a new target word that is different from the previous answer (Requirement 2.2, 6.5)
-    const newTargetWord = await this._selectDifferentWord(previousAnswer);
-    
     // Create new GameController with the selected word
     const hardMode = this.sessionConfig?.hardMode || false;
     this.currentGameController = new GameController(this.dictionary, hardMode);
     
-    // Start new game with session configuration
+    // Start new game with session configuration - this will use frequency range correctly
     const maxGuesses = this.sessionConfig?.maxGuesses || 4;
     const frequencyRange = this.sessionConfig?.frequencyRange || null;
     
-    // Start new game - we need to override the target word selection
-    // Since GameController.startNewGame() selects a random word, we need to create GameState directly
-    const GameState = require('./GameState');
-    const newGameState = new GameState(newTargetWord, maxGuesses);
-    this.currentGameController.gameState = newGameState;
+    console.log('HurdleController.startNextHurdle - using frequency range:', frequencyRange);
+    
+    // Use GameController.startNewGame to ensure frequency range is properly passed
+    let newGameState;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    // Keep trying until we get a different word
+    do {
+      newGameState = await this.currentGameController.startNewGame(maxGuesses, frequencyRange);
+      attempts++;
+      
+      if (newGameState.getTargetWord() !== previousAnswer) {
+        break; // Found a different word
+      }
+      
+      if (attempts >= maxAttempts) {
+        console.warn(`Could not find different word after ${maxAttempts} attempts, using current word`);
+        break;
+      }
+    } while (attempts < maxAttempts);
     
     // Apply auto-guess immediately (Requirement 2.3, 2.4)
     const guessResult = await this.currentGameController.submitGuess(previousAnswer);
@@ -176,7 +190,7 @@ class HurdleController {
     }
     
     // Update previous answer for next iteration
-    this.previousAnswer = newTargetWord;
+    this.previousAnswer = newGameState.getTargetWord();
     
     // Handle edge case: auto-guess immediately solves the hurdle (Requirement 6.1, 6.2)
     if (guessResult.gameStatus === 'won') {
@@ -360,3 +374,6 @@ class HurdleController {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = HurdleController;
 }
+
+// ES6 export for modern bundlers
+export default HurdleController;

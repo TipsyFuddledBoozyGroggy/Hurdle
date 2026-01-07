@@ -5,6 +5,7 @@
 
 class GameConfig {
   constructor() {
+    this.instanceId = Math.random().toString(36).substr(2, 9);
     this.storageKey = 'hurdle-game-config';
     this.defaultConfig = {
       maxGuesses: 4,
@@ -13,8 +14,12 @@ class GameConfig {
       hardMode: false
     };
     
+    console.log(`GameConfig constructor [${this.instanceId}] - default config:`, this.defaultConfig);
+    
     // Load existing config or use defaults
     this.config = this.loadConfig();
+    
+    console.log(`GameConfig constructor [${this.instanceId}] - loaded config:`, this.config);
   }
 
   /**
@@ -22,19 +27,31 @@ class GameConfig {
    * @returns {Object} Configuration object
    */
   loadConfig() {
+    console.log('Loading config from localStorage...');
     try {
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem(this.storageKey);
+        console.log('Raw localStorage value:', stored);
+        
         if (stored) {
           const parsed = JSON.parse(stored);
+          console.log('Parsed localStorage config:', parsed);
+          
           // Merge with defaults to ensure all properties exist
-          return { ...this.defaultConfig, ...parsed };
+          const merged = { ...this.defaultConfig, ...parsed };
+          console.log('Merged config (defaults + stored):', merged);
+          return merged;
+        } else {
+          console.log('No stored config found, using defaults');
         }
+      } else {
+        console.log('localStorage not available');
       }
     } catch (error) {
       console.warn('Failed to load game config from localStorage:', error);
     }
     
+    console.log('Returning default config:', this.defaultConfig);
     return { ...this.defaultConfig };
   }
 
@@ -42,9 +59,18 @@ class GameConfig {
    * Save configuration to localStorage
    */
   saveConfig() {
+    console.log('Saving config to localStorage:', this.config);
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.config));
+        const jsonString = JSON.stringify(this.config);
+        console.log('JSON string to save:', jsonString);
+        localStorage.setItem(this.storageKey, jsonString);
+        
+        // Verify it was saved
+        const verification = localStorage.getItem(this.storageKey);
+        console.log('Verification - saved value:', verification);
+      } else {
+        console.warn('localStorage not available for saving');
       }
     } catch (error) {
       console.warn('Failed to save game config to localStorage:', error);
@@ -102,11 +128,11 @@ class GameConfig {
       case 'easy':
         return { min: 5.5, max: 7.0 };
       case 'medium':
-        return { min: 4.5, max: 6.0 };
+        return { min: 4.0, max: 5.49 };
       case 'hard':
         return { min: 0, max: 4.0 };
       default:
-        return { min: 4.5, max: 6.0 }; // Default to medium
+        return { min: 4.0, max: 5.49 }; // Default to medium
     }
   }
 
@@ -132,7 +158,9 @@ class GameConfig {
    * @returns {boolean} True if hard mode is enabled
    */
   getHardMode() {
-    return this.config.hardMode;
+    const hardMode = this.config.hardMode;
+    console.log(`[${this.instanceId}] Getting hard mode: ${hardMode}`);
+    return hardMode;
   }
 
   /**
@@ -140,8 +168,21 @@ class GameConfig {
    * @param {boolean} enabled - Whether to enable hard mode
    */
   setHardMode(enabled) {
+    console.log(`[${this.instanceId}] Setting hard mode to: ${enabled}`);
     this.config.hardMode = Boolean(enabled);
     this.saveConfig();
+    console.log(`[${this.instanceId}] Hard mode after save: ${this.config.hardMode}`);
+    
+    // Verify it was saved to localStorage
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(this.storageKey);
+        const parsed = JSON.parse(stored);
+        console.log(`[${this.instanceId}] Hard mode in localStorage: ${parsed.hardMode}`);
+      }
+    } catch (error) {
+      console.warn('Failed to verify localStorage save:', error);
+    }
   }
 
   /**
@@ -156,8 +197,25 @@ class GameConfig {
    * Reset configuration to defaults
    */
   resetToDefaults() {
+    console.log(`[${this.instanceId}] Resetting to defaults`);
     this.config = { ...this.defaultConfig };
     this.saveConfig();
+    console.log(`[${this.instanceId}] Config after reset:`, this.config);
+  }
+
+  /**
+   * Clear localStorage (for debugging)
+   */
+  clearStorage() {
+    console.log(`[${this.instanceId}] Clearing localStorage`);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(this.storageKey);
+        console.log(`[${this.instanceId}] localStorage cleared`);
+      }
+    } catch (error) {
+      console.warn('Failed to clear localStorage:', error);
+    }
   }
 
   /**

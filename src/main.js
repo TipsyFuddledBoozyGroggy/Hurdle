@@ -9,7 +9,7 @@ import GameController from './GameController.js';
 
 /**
  * Initialize the Hurdle application
- * Loads the word dictionary and sets up the game
+ * Sets up the game using WordsAPI for all word operations
  */
 async function initializeApp() {
   try {
@@ -23,53 +23,25 @@ async function initializeApp() {
     
     // Detect environment
     const isProduction = detectProductionEnvironment();
+    const isTestEnvironment = detectTestEnvironment();
     console.log(`Running in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+    console.log(`Test environment: ${isTestEnvironment}`);
     
-    // Choose dictionary file based on environment
-    const dictionaryFile = isProduction ? '/words.json' : '/words_uncommon.json';
-    console.log(`Loading dictionary from: ${dictionaryFile}`);
+    console.log('Using WordsAPI for all word operations (no local dictionary files)');
     
-    // Load word dictionary with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    // Initialize Dictionary instance without word list - uses WordsAPI exclusively
+    console.log('Creating Dictionary instance (WordsAPI mode)...');
+    const dictionary = new Dictionary();
     
-    const response = await fetch(dictionaryFile, {
-      signal: controller.signal,
-      cache: 'no-cache' // Prevent caching issues on mobile
-    });
+    // Test WordsAPI connectivity
+    console.log('Testing WordsAPI connectivity...');
+    const testWord = 'house';
+    const isConnected = await dictionary.isValidWord(testWord);
+    console.log(`WordsAPI connectivity test: ${isConnected ? 'SUCCESS' : 'FAILED'}`);
     
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      // If uncommon words file fails in development, fall back to main dictionary
-      if (!isProduction && dictionaryFile === '/words_uncommon.json') {
-        console.warn('Uncommon words dictionary not found, falling back to main dictionary');
-        return loadMainDictionary();
-      }
-      throw new Error(`Failed to load dictionary: ${response.status} ${response.statusText}`);
+    if (!isConnected && !isTestEnvironment) {
+      throw new Error('WordsAPI is not accessible. Please check your internet connection.');
     }
-    
-    console.log('Dictionary response received, parsing JSON...');
-    const data = await response.json();
-    
-    // Validate dictionary data
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid dictionary format: not a valid JSON object');
-    }
-    
-    if (!data.words || !Array.isArray(data.words)) {
-      throw new Error('Invalid dictionary format: expected "words" array');
-    }
-    
-    if (data.words.length === 0) {
-      throw new Error('Dictionary is empty');
-    }
-    
-    console.log(`Dictionary loaded: ${data.words.length} words`);
-    
-    // Initialize Dictionary instance - always available
-    console.log('Creating Dictionary instance...');
-    const dictionary = new Dictionary(data.words);
     
     // Initialize GameController with Dictionary - used by HurdleController
     console.log('Creating GameController instance...');
@@ -102,7 +74,7 @@ async function initializeApp() {
           <h2 style="color: #d32f2f; margin-bottom: 15px;">Failed to Start Game</h2>
           <p style="margin-bottom: 10px;">Error: ${error.message}</p>
           <p style="font-size: 0.9rem; color: #818384; margin-bottom: 15px;">
-            This may be due to network issues or browser compatibility.
+            This game requires an internet connection to access the WordsAPI service.
           </p>
           <button onclick="window.location.reload()" style="
             background-color: #538d4e; 
@@ -122,46 +94,34 @@ async function initializeApp() {
 }
 
 /**
- * Fallback function to load main dictionary
+ * Detect if we're running in a test environment
+ * @returns {boolean} True if running in test environment
  */
-async function loadMainDictionary() {
-  console.log('Loading main dictionary as fallback...');
-  
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-  
-  const response = await fetch('/words.json', {
-    signal: controller.signal,
-    cache: 'no-cache'
-  });
-  
-  clearTimeout(timeoutId);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to load main dictionary: ${response.status} ${response.statusText}`);
+function detectTestEnvironment() {
+  // Check for Jest test environment
+  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
+    return true;
   }
   
-  const data = await response.json();
-  
-  if (!data || !data.words || !Array.isArray(data.words)) {
-    throw new Error('Invalid dictionary format: expected "words" array');
+  // Check for Jest globals
+  if (typeof global !== 'undefined' && global.expect && global.test) {
+    return true;
   }
   
-  console.log(`Main dictionary loaded: ${data.words.length} words`);
+  // Check for other test indicators
+  if (typeof window !== 'undefined' && window.__karma__) {
+    return true;
+  }
   
-  // Initialize Dictionary and GameController
-  const dictionary = new Dictionary(data.words);
-  const gameController = new GameController(dictionary);
+  // Check URL parameters for test mode
+  if (typeof window !== 'undefined' && window.location) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('test') === 'true') {
+      return true;
+    }
+  }
   
-  const app = createApp(App, {
-    gameController,
-    dictionary
-  });
-  
-  app.use(vuetify);
-  app.mount('#app');
-  
-  console.log('Hurdle - Ready to play!');
+  return false;
 }
 
 /**

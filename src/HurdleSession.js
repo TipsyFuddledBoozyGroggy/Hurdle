@@ -168,3 +168,6 @@ class HurdleSession {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = HurdleSession;
 }
+
+// ES6 export for modern bundlers
+export default HurdleSession;

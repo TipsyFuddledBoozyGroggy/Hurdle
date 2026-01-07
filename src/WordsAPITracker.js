@@ -333,3 +333,6 @@ class WordsAPITracker {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = WordsAPITracker;
 }
+
+// ES6 export for modern bundlers
+export default WordsAPITracker;

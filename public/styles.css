@@ -2,18 +2,19 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Prevent double-tap zoom on all interactive elements */
-button, .key, .letter-tile, .config-btn, .solved-word-btn, .close-definition-btn {
+button, .key, .letter-tile, .config-btn, .solved-word-btn, .close-definition-btn, 
+.v-btn, .v-card, .v-chip, .v-icon, [role="button"], [onclick] {
   touch-action: manipulation !important;
   -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none !important;
@@ -22,9 +23,12 @@ button, .key, .letter-tile, .config-btn, .solved-word-btn, .close-definition-btn
 }
 
 /* Prevent zoom on any clickable elements */
-[onclick], [role="button"], .clickable {
+[onclick], [role="button"], .clickable, .v-btn, .v-card.letter-tile {
   touch-action: manipulation !important;
   -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 /* Allow text selection for specific elements */
@@ -51,6 +55,10 @@ html {
   /* Prevent zoom on iOS Safari */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -71,6 +79,10 @@ body {
   /* Additional iOS Safari zoom prevention */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-overflow-scrolling: touch;
 }
@@ -669,7 +681,6 @@ button:disabled {
   
   .key.wide {
     flex: 1.5;
-  }
   }
   
   .keyboard-row {
