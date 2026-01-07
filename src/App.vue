@@ -40,7 +40,7 @@
                 <v-chip color="success" variant="outlined" size="small">
                   Completed: {{ completedHurdlesCount }}
                 </v-chip>
-                <v-chip color="warning" variant="outlined" size="small">
+                <v-chip color="warning" variant="outlined" size="small" class="current-score">
                   Score: {{ totalScore }}
                 </v-chip>
                 <v-chip 
