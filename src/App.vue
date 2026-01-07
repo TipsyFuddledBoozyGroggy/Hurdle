@@ -34,7 +34,7 @@
             <!-- Progress Display -->
             <div class="hurdle-progress mt-2">
               <div class="hurdle-info d-flex flex-wrap justify-center align-center ga-2">
-                <v-chip color="primary" variant="outlined" size="small">
+                <v-chip color="primary" variant="outlined" size="small" class="hurdle-number">
                   Hurdle {{ hurdleNumber }}
                 </v-chip>
                 <v-chip color="success" variant="outlined" size="small">
@@ -58,7 +58,7 @@
         <!-- Game Board -->
         <v-row justify="center" class="mb-4">
           <v-col cols="12" sm="10" md="8" lg="6" xl="4">
-            <div class="game-board">
+            <div id="game-board" class="game-board">
               <v-row 
                 v-for="(row, index) in boardRows" 
                 :key="index" 
