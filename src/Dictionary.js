@@ -442,3 +442,6 @@ class Dictionary {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = Dictionary;
 }
+
+// ES6 export for modern bundlers
+export default Dictionary;

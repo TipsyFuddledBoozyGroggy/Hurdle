@@ -175,3 +175,6 @@ class GameController {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = GameController;
 }
+
+// ES6 export for modern bundlers
+export default GameController;
