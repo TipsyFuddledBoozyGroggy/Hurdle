@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A challenging word-guessing game based on Wordle",
   "main": "src/main.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
