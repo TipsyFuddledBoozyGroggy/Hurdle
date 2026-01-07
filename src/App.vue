@@ -61,14 +61,14 @@
             <div id="game-board" class="game-board">
               <v-row 
                 v-for="(row, index) in boardRows" 
-                :key="index" 
+                :key="`row-${index}-${gameStateVersion}`"
                 class="guess-row ma-0 mb-2"
                 no-gutters
                 justify="center"
               >
                 <v-col 
                   v-for="(tile, tileIndex) in row" 
-                  :key="tileIndex"
+                  :key="`tile-${index}-${tileIndex}-${tile.letter}-${gameStateVersion}`"
                   cols="2"
                   class="pa-1"
                   style="max-width: 70px;"
@@ -351,7 +351,14 @@ export default {
       // Use reactive maxGuesses instead of calling gameConfig.getMaxGuesses()
       const maxGuessesValue = maxGuesses.value;
       
+      console.log('=== BOARD ROWS DEBUG ===');
+      console.log('maxGuessesValue:', maxGuessesValue);
+      console.log('gameState exists:', !!gameState.value);
+      console.log('isGameOver:', isGameOver.value);
+      console.log('currentGuess.value:', currentGuess.value);
+      
       if (!gameState.value) {
+        console.log('No game state - creating empty grid');
         // Create empty grid with current guess in first row if typing
         const rows = [];
         for (let rowIndex = 0; rowIndex < maxGuessesValue; rowIndex++) {
@@ -367,11 +374,15 @@ export default {
           }
           rows.push(row);
         }
+        console.log('Returning empty grid rows:', rows.length);
+        console.log('=== END BOARD ROWS DEBUG ===');
         return rows;
       }
       
       const guesses = gameState.value?.getGuesses() || [];
       const rows = [];
+      
+      console.log('Number of guesses:', guesses.length);
       
       // Add completed guess rows with feedback
       guesses.forEach((guess, guessIndex) => {
@@ -385,18 +396,29 @@ export default {
         rows.push(row);
       });
       
+      console.log('Rows after adding guesses:', rows.length);
+      console.log('Should add current guess row?', !isGameOver.value && rows.length < maxGuessesValue);
+      
       // Add current guess row (if game not over and we haven't used all attempts)
       if (!isGameOver.value && rows.length < maxGuessesValue) {
+        console.log('Adding current guess row with currentGuess:', currentGuess.value);
         const currentRow = [];
         for (let i = 0; i < 5; i++) {
           const hasLetter = i < currentGuess.value.length;
-          currentRow.push({
+          const tileData = {
             letter: hasLetter ? currentGuess.value[i].toUpperCase() : '',
             status: hasLetter ? 'filled' : 'empty',
             active: hasLetter
-          });
+          };
+          currentRow.push(tileData);
+          if (i === 0) {
+            console.log('First tile data:', tileData);
+          }
         }
         rows.push(currentRow);
+        console.log('Current row added:', currentRow);
+      } else {
+        console.log('NOT adding current guess row');
       }
       
       // Fill remaining empty rows up to maxGuessesValue
@@ -408,6 +430,9 @@ export default {
         }));
         rows.push(emptyRow);
       }
+      
+      console.log('Final rows count:', rows.length);
+      console.log('=== END BOARD ROWS DEBUG ===');
       
       return rows;
     });
@@ -483,6 +508,16 @@ export default {
     };
     
     const handleKeyPress = (key) => {
+      console.log('=== KEY PRESS DEBUG ===');
+      console.log('Key pressed:', key);
+      console.log('isInitialized:', isInitialized.value);
+      console.log('isGameOver:', isGameOver.value);
+      console.log('gameController exists:', !!props.gameController);
+      console.log('gameState exists:', !!gameState.value);
+      console.log('gameState status:', gameState.value?.getGameStatus());
+      console.log('current guess length:', currentGuess.value.length);
+      console.log('=== END DEBUG ===');
+      
       if (!isInitialized.value || isGameOver.value || !props.gameController) return;
       
       if (key === 'ENTER') {
@@ -497,6 +532,7 @@ export default {
         }
       } else if (currentGuess.value.length < 5) {
         currentGuess.value += key;
+        console.log('Added letter, new currentGuess:', currentGuess.value);
         // Clear error messages when user starts typing
         if (message.value && messageType.value === 'error') {
           showMessage('', '');
@@ -505,6 +541,12 @@ export default {
     };
     
     const handleGlobalKeydown = (event) => {
+      console.log('=== GLOBAL KEYDOWN DEBUG ===');
+      console.log('Global keydown event captured:', event.key);
+      console.log('isGameOver:', isGameOver.value);
+      console.log('gameController exists:', !!props.gameController);
+      console.log('=== END GLOBAL KEYDOWN DEBUG ===');
+      
       if (isGameOver.value || !props.gameController) return;
       
       const key = event.key.toUpperCase();
@@ -523,9 +565,17 @@ export default {
         }
       } else if (/^[A-Z]$/.test(key)) {
         event.preventDefault();
+        console.log('Letter key detected:', key);
+        console.log('Current guess before:', currentGuess.value);
+        console.log('Current guess length:', currentGuess.value.length);
+        
         if (currentGuess.value.length < 5) {
           currentGuess.value += key;
+          console.log('Letter added! New currentGuess:', currentGuess.value);
+        } else {
+          console.log('Cannot add letter - already at max length');
         }
+        
         // Clear error messages when user starts typing
         if (message.value && messageType.value === 'error') {
           showMessage('', '');
@@ -1118,10 +1168,8 @@ export default {
           }
         }, 600);
         
-        // Cleanup timeout if component unmounts
-        onUnmounted(() => {
-          clearTimeout(timeoutId);
-        });
+        // Store timeout ID for potential cleanup (but don't use onUnmounted here)
+        // The timeout will clean up automatically when it completes
         
       } catch (error) {
         console.error('Error during score animation:', error);
@@ -1255,6 +1303,20 @@ export default {
           try {
             updateHurdleUI();
             gameStateVersion.value++;
+            
+            // Ensure input is enabled after transition
+            isInitialized.value = true;
+            
+            console.log('=== POST-TRANSITION DEBUG ===');
+            console.log('isInitialized set to:', isInitialized.value);
+            console.log('gameController exists:', !!gameController);
+            console.log('gameState exists:', !!nextGameState);
+            console.log('gameState status:', nextGameState?.getGameStatus());
+            console.log('gameState isGameOver:', nextGameState?.isGameOver());
+            console.log('remaining attempts:', nextGameState?.getRemainingAttempts());
+            console.log('currentGuess after transition:', currentGuess.value);
+            console.log('=== END POST-TRANSITION DEBUG ===');
+            
           } catch (uiError) {
             console.error('UI update failed during transition:', uiError);
             // Continue anyway - UI issues shouldn't break gameplay
@@ -1815,7 +1877,11 @@ export default {
     
     onMounted(async () => {
       // Add global keyboard event listener
+      console.log('=== MOUNTING DEBUG ===');
+      console.log('Adding global keydown event listener');
       document.addEventListener('keydown', handleGlobalKeydown);
+      console.log('Event listener added successfully');
+      console.log('=== END MOUNTING DEBUG ===');
       
       // Always initialize controller and start game
       if (props.gameController && props.dictionary) {
@@ -1853,6 +1919,16 @@ export default {
       { immediate: true }
     );
     
+    // Debug watcher for currentGuess changes
+    watch(
+      () => currentGuess.value,
+      (newValue, oldValue) => {
+        console.log('=== CURRENT GUESS WATCHER ===');
+        console.log('currentGuess changed from:', oldValue, 'to:', newValue);
+        console.log('=== END CURRENT GUESS WATCHER ===');
+      }
+    );
+    
     return {
       gameConfig,
       showConfigPage,
@@ -1870,6 +1946,7 @@ export default {
       isGameOver,
       isGameActive,
       isInitialized,
+      gameStateVersion, // Add gameStateVersion for template keys
       // Game Properties
       hurdleNumber,
       completedHurdlesCount,
