@@ -502,10 +502,10 @@ class Dictionary {
           url: `https://wordsapiv1.p.rapidapi.com/words/?letters=5&frequencyMin=${freq.min}&frequencyMax=${freq.max}&random=true`,
           description: `letters=5 with frequency range ${freq.min}-${freq.max}`
         },
-        // Secondary: basic random with frequency range (fallback but still with frequency)
+        // Secondary: basic random with frequency range (fallback but still with frequency and letters=5)
         {
-          url: `https://wordsapiv1.p.rapidapi.com/words/?frequencyMin=${freq.min}&frequencyMax=${freq.max}&random=true`,
-          description: `basic random with frequency range ${freq.min}-${freq.max}`
+          url: `https://wordsapiv1.p.rapidapi.com/words/?letters=5&frequencyMin=${freq.min}&frequencyMax=${freq.max}&random=true`,
+          description: `basic random with letters=5 and frequency range ${freq.min}-${freq.max}`
         }
       ];
       
