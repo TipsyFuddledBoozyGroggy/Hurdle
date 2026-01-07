@@ -5,146 +5,194 @@
     transition="dialog-bottom-transition"
     persistent
   >
-    <v-card class="d-flex flex-column" style="height: 100vh;">
-      <v-toolbar color="primary" dark>
-        <v-toolbar-title>Game Settings</v-toolbar-title>
-        <v-spacer></v-spacer>
-        <v-btn icon @click="$emit('close')">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-toolbar>
-
-      <v-card-text class="flex-grow-1 overflow-y-auto pa-4">
-        <!-- Game Active Warning -->
-        <v-alert
-          v-if="gameActive"
-          type="warning"
-          variant="tonal"
-          class="mb-4"
-          density="compact"
+    <v-card class="config-page">
+      <!-- Header -->
+      <v-app-bar color="surface" flat>
+        <v-btn 
+          icon 
+          @click="$emit('close')" 
+          class="ml-2"
+          style="touch-action: manipulation; user-select: none;"
         >
-          <v-alert-title>Game In Progress</v-alert-title>
-          Settings cannot be changed during active gameplay.
-        </v-alert>
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
+        <v-app-bar-title class="text-h6 font-weight-medium">Settings</v-app-bar-title>
+        <v-spacer></v-spacer>
+        <v-btn 
+          @click="saveSettings" 
+          color="primary" 
+          variant="text"
+          :disabled="gameActive"
+          class="mr-2"
+        >
+          Save
+        </v-btn>
+      </v-app-bar>
 
-        <v-container class="pa-0">
-          <!-- Max Guesses Setting -->
-          <v-card :disabled="gameActive" variant="outlined" class="mb-4">
-            <v-card-item>
-              <v-card-title class="text-h6 pb-2">Number of Guesses</v-card-title>
-              <v-card-subtitle class="pb-3">Choose how many attempts you get per word</v-card-subtitle>
-              <v-radio-group v-model="maxGuesses" :disabled="gameActive" inline density="compact">
-                <v-radio
-                  v-for="option in guessOptions"
-                  :key="option"
-                  :label="`${option}`"
-                  :value="option"
-                  density="compact"
-                ></v-radio>
-              </v-radio-group>
-            </v-card-item>
-          </v-card>
+      <!-- Content -->
+      <v-main class="config-content">
+        <v-container class="py-6" style="max-width: 600px;">
+          <!-- Game Active Warning -->
+          <v-alert
+            v-if="gameActive"
+            type="info"
+            variant="tonal"
+            class="mb-6"
+            icon="mdi-information"
+          >
+            Complete your current game to change settings
+          </v-alert>
 
-          <!-- Difficulty Setting -->
-          <v-card :disabled="gameActive" variant="outlined" class="mb-4">
-            <v-card-item>
-              <v-card-title class="text-h6 pb-2">Difficulty Level</v-card-title>
-              <v-card-subtitle class="pb-3">Controls word rarity</v-card-subtitle>
-              <v-radio-group v-model="difficulty" :disabled="gameActive" density="compact">
-                <v-radio
-                  v-for="option in difficultyOptions"
-                  :key="option.value"
-                  :value="option.value"
-                  density="compact"
-                >
-                  <template v-slot:label>
-                    <div>
-                      <div class="font-weight-medium">{{ option.label }}</div>
-                      <div class="text-caption text-medium-emphasis">{{ option.description }}</div>
-                    </div>
-                  </template>
-                </v-radio>
-              </v-radio-group>
-            </v-card-item>
-          </v-card>
-
-          <!-- Toggles Row -->
-          <v-row class="mb-4">
-            <v-col cols="12" sm="6">
-              <v-card :disabled="gameActive" variant="outlined" class="h-100">
-                <v-card-item>
-                  <v-card-title class="text-h6 pb-2">Definitions</v-card-title>
-                  <v-card-subtitle class="pb-3">Show word meanings</v-card-subtitle>
-                  <v-switch
-                    v-model="showDefinitions"
-                    :disabled="gameActive"
-                    label="Show definitions"
-                    color="primary"
-                    density="compact"
-                    hide-details
-                  ></v-switch>
-                </v-card-item>
-              </v-card>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-card :disabled="gameActive" variant="outlined" class="h-100">
-                <v-card-item>
-                  <v-card-title class="text-h6 pb-2">Hard Mode</v-card-title>
-                  <v-card-subtitle class="pb-3">Use revealed hints</v-card-subtitle>
-                  <v-switch
-                    v-model="hardMode"
-                    :disabled="gameActive"
-                    label="Enable hard mode"
-                    color="error"
-                    density="compact"
-                    hide-details
-                  ></v-switch>
-                </v-card-item>
-              </v-card>
-            </v-col>
-          </v-row>
-
-          <!-- Reset Settings -->
-          <v-card :disabled="gameActive" variant="outlined" class="mb-4">
-            <v-card-item>
-              <v-card-title class="text-h6 pb-2">Reset Settings</v-card-title>
-              <v-card-subtitle class="pb-3">Restore defaults</v-card-subtitle>
-              <v-btn
-                @click="resetSettings"
+          <!-- Settings List -->
+          <v-list class="bg-transparent">
+            <!-- Guesses Setting -->
+            <v-list-item class="px-0 mb-4">
+              <template v-slot:prepend>
+                <v-avatar color="primary" variant="tonal" size="40">
+                  <v-icon>mdi-numeric</v-icon>
+                </v-avatar>
+              </template>
+              
+              <v-list-item-title class="text-h6 mb-1">Guesses</v-list-item-title>
+              <v-list-item-subtitle class="mb-3">Number of attempts per word</v-list-item-subtitle>
+              
+              <v-chip-group 
+                v-model="maxGuessesIndex" 
                 :disabled="gameActive"
-                color="error"
-                variant="outlined"
-                size="small"
+                selected-class="text-primary"
+                mandatory
               >
-                Reset to Defaults
-              </v-btn>
-            </v-card-item>
-          </v-card>
+                <v-chip
+                  v-for="(option, index) in guessOptions"
+                  :key="option"
+                  :value="index"
+                  variant="outlined"
+                  filter
+                >
+                  {{ option }}
+                </v-chip>
+              </v-chip-group>
+            </v-list-item>
 
-          <!-- Extra padding at bottom -->
-          <div style="height: 80px;"></div>
+            <v-divider class="my-4"></v-divider>
+
+            <!-- Difficulty Setting -->
+            <v-list-item class="px-0 mb-4">
+              <template v-slot:prepend>
+                <v-avatar color="warning" variant="tonal" size="40">
+                  <v-icon>mdi-target</v-icon>
+                </v-avatar>
+              </template>
+              
+              <v-list-item-title class="text-h6 mb-1">Difficulty</v-list-item-title>
+              <v-list-item-subtitle class="mb-3">Word rarity level</v-list-item-subtitle>
+              
+              <v-chip-group 
+                v-model="difficultyIndex" 
+                :disabled="gameActive"
+                selected-class="text-warning"
+                mandatory
+              >
+                <v-chip
+                  v-for="(option, index) in difficultyOptions"
+                  :key="option.value"
+                  :value="index"
+                  variant="outlined"
+                  filter
+                >
+                  {{ option.label }}
+                </v-chip>
+              </v-chip-group>
+            </v-list-item>
+
+            <v-divider class="my-4"></v-divider>
+
+            <!-- Definitions Toggle -->
+            <v-list-item class="px-0 mb-4">
+              <template v-slot:prepend>
+                <v-avatar color="info" variant="tonal" size="40">
+                  <v-icon>mdi-book-open-variant</v-icon>
+                </v-avatar>
+              </template>
+              
+              <div class="flex-grow-1">
+                <v-list-item-title class="text-h6 mb-1">Word Definitions</v-list-item-title>
+                <v-list-item-subtitle>Show meanings after each word</v-list-item-subtitle>
+              </div>
+              
+              <template v-slot:append>
+                <v-switch
+                  v-model="showDefinitions"
+                  :disabled="gameActive"
+                  color="info"
+                  hide-details
+                  inset
+                ></v-switch>
+              </template>
+            </v-list-item>
+
+            <v-divider class="my-4"></v-divider>
+
+            <!-- Hard Mode Toggle -->
+            <v-list-item class="px-0 mb-4">
+              <template v-slot:prepend>
+                <v-avatar color="error" variant="tonal" size="40">
+                  <v-icon>mdi-fire</v-icon>
+                </v-avatar>
+              </template>
+              
+              <div class="flex-grow-1">
+                <v-list-item-title class="text-h6 mb-1">Hard Mode</v-list-item-title>
+                <v-list-item-subtitle>Must use revealed hints</v-list-item-subtitle>
+              </div>
+              
+              <template v-slot:append>
+                <v-switch
+                  v-model="hardMode"
+                  :disabled="gameActive"
+                  color="error"
+                  hide-details
+                  inset
+                ></v-switch>
+              </template>
+            </v-list-item>
+
+            <v-divider class="my-6"></v-divider>
+
+            <!-- Reset Section -->
+            <v-list-item class="px-0">
+              <template v-slot:prepend>
+                <v-avatar color="grey" variant="tonal" size="40">
+                  <v-icon>mdi-restore</v-icon>
+                </v-avatar>
+              </template>
+              
+              <div class="flex-grow-1">
+                <v-list-item-title class="text-h6 mb-1">Reset Settings</v-list-item-title>
+                <v-list-item-subtitle>Restore all defaults</v-list-item-subtitle>
+              </div>
+              
+              <template v-slot:append>
+                <v-btn
+                  @click="resetSettings"
+                  :disabled="gameActive"
+                  color="grey"
+                  variant="outlined"
+                  size="small"
+                >
+                  Reset
+                </v-btn>
+              </template>
+            </v-list-item>
+          </v-list>
         </v-container>
-      </v-card-text>
-
-      <!-- Fixed Footer with Save Button -->
-      <v-card-actions class="flex-shrink-0 pa-4 bg-surface" style="border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));">
-        <v-spacer></v-spacer>
-        <v-btn
-          @click="saveSettings"
-          color="primary"
-          size="large"
-          variant="elevated"
-          block
-        >
-          Save & Close
-        </v-btn>
-      </v-card-actions>
+      </v-main>
     </v-card>
   </v-dialog>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import GameConfig from './GameConfig.js';
 
 export default {
@@ -187,6 +235,25 @@ export default {
         description: 'Rare words'
       }
     ];
+
+    // Computed properties for chip selection
+    const maxGuessesIndex = computed({
+      get: () => guessOptions.indexOf(maxGuesses.value),
+      set: (index) => {
+        if (index >= 0 && index < guessOptions.length) {
+          maxGuesses.value = guessOptions[index];
+        }
+      }
+    });
+
+    const difficultyIndex = computed({
+      get: () => difficultyOptions.findIndex(opt => opt.value === difficulty.value),
+      set: (index) => {
+        if (index >= 0 && index < difficultyOptions.length) {
+          difficulty.value = difficultyOptions[index].value;
+        }
+      }
+    });
 
     // Load current settings from GameConfig into local state
     const loadSettings = () => {
@@ -251,6 +318,8 @@ export default {
       hardMode,
       guessOptions,
       difficultyOptions,
+      maxGuessesIndex,
+      difficultyIndex,
       saveSettings,
       resetSettings
     };
@@ -259,130 +328,159 @@ export default {
 </script>
 
 <style scoped>
-.v-card.v-card--disabled {
-  opacity: 0.6;
-}
-
-.v-radio-group--inline .v-radio {
-  margin-right: 16px;
-}
-
-/* Ensure proper flexbox layout */
-.v-card {
+.config-page {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.v-card-text {
-  flex: 1 1 auto;
+.config-content {
+  flex: 1;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 
-.v-card-actions {
-  flex: 0 0 auto;
-  background-color: rgb(var(--v-theme-surface));
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+.v-list-item {
+  min-height: auto !important;
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+  touch-action: manipulation;
+}
+
+.v-list-item-title {
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  user-select: none;
+}
+
+.v-list-item-subtitle {
+  opacity: 0.7 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.3 !important;
+  user-select: none;
+}
+
+.v-chip-group {
+  margin-top: 8px;
+  touch-action: manipulation;
+}
+
+.v-chip {
+  margin-right: 8px !important;
+  margin-bottom: 4px !important;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.v-avatar {
+  margin-right: 16px !important;
+  user-select: none;
+}
+
+.v-switch {
+  flex: none !important;
+  touch-action: manipulation;
+}
+
+.v-btn {
+  touch-action: manipulation;
+  user-select: none;
 }
 
 /* Mobile optimizations */
 @media (max-width: 600px) {
-  .v-dialog {
-    margin: 0;
-  }
-  
-  .v-card-text {
-    padding: 8px !important;
-  }
-  
   .v-container {
-    padding: 0;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
   }
   
-  .v-card-actions {
-    padding: 12px !important;
+  .v-list-item {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
   }
   
-  .v-card.mb-4 {
-    margin-bottom: 12px !important;
+  .v-list-item-title {
+    font-size: 1.1rem !important;
   }
   
-  .v-card-item {
-    padding: 12px !important;
-  }
-  
-  .v-card-title {
-    font-size: 1rem !important;
-    padding-bottom: 4px !important;
-  }
-  
-  .v-card-subtitle {
-    font-size: 0.8rem !important;
-    padding-bottom: 8px !important;
-  }
-  
-  .v-radio .v-label {
-    font-size: 0.85rem !important;
-  }
-  
-  .v-switch .v-label {
-    font-size: 0.85rem !important;
-  }
-  
-  .v-btn {
+  .v-list-item-subtitle {
     font-size: 0.8rem !important;
   }
   
-  .v-alert {
-    margin-bottom: 12px !important;
+  .v-avatar {
+    margin-right: 12px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
   
-  .v-alert-title {
-    font-size: 0.9rem !important;
+  .v-chip {
+    font-size: 0.8rem !important;
+    height: 28px !important;
+  }
+  
+  .v-app-bar-title {
+    font-size: 1.1rem !important;
   }
 }
 
 @media (max-width: 480px) {
-  .v-card-text {
-    padding: 6px !important;
+  .v-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 16px !important;
   }
   
-  .v-card-actions {
-    padding: 8px !important;
+  .v-list-item {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
   }
   
-  .v-card.mb-4 {
-    margin-bottom: 8px !important;
+  .v-list-item-title {
+    font-size: 1rem !important;
   }
   
-  .v-card-item {
-    padding: 8px !important;
-  }
-  
-  .v-card-title {
-    font-size: 0.9rem !important;
-    padding-bottom: 2px !important;
-  }
-  
-  .v-card-subtitle {
+  .v-list-item-subtitle {
     font-size: 0.75rem !important;
-    padding-bottom: 6px !important;
   }
   
-  .v-radio .v-label {
-    font-size: 0.8rem !important;
+  .v-avatar {
+    margin-right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
   }
   
-  .v-switch .v-label {
-    font-size: 0.8rem !important;
+  .v-chip {
+    font-size: 0.75rem !important;
+    height: 26px !important;
+    margin-right: 6px !important;
   }
   
   .v-btn {
-    font-size: 0.75rem !important;
+    font-size: 0.8rem !important;
   }
-  
-  .v-row {
-    margin-bottom: 8px !important;
-  }
+}
+
+/* Smooth transitions */
+.v-chip {
+  transition: all 0.2s ease !important;
+}
+
+.v-switch {
+  transition: all 0.2s ease !important;
+}
+
+.v-list-item {
+  transition: background-color 0.2s ease !important;
+}
+
+/* Custom chip styling */
+.v-chip--variant-outlined {
+  border-width: 1.5px !important;
+}
+
+.v-chip.v-chip--selected {
+  font-weight: 500 !important;
 }
 </style>

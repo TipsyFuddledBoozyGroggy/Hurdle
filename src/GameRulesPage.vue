@@ -9,7 +9,11 @@
       <v-toolbar color="primary" dark>
         <v-toolbar-title>Game Rules & Scoring</v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-btn icon @click="$emit('close')">
+        <v-btn 
+          icon 
+          @click="$emit('close')"
+          style="touch-action: manipulation; user-select: none;"
+        >
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
@@ -26,11 +30,11 @@
                 </v-card-title>
                 <v-card-text class="text-body-1">
                   <p class="mb-3">
-                    Hurdle is a challenging word-guessing game inspired by Wordle, but with significantly increased difficulty. 
+                    Hurdle is a challenging word-guessing game inspired by another popular word puzzle, but with significantly increased difficulty. 
                     Instead of just solving one word, you'll face an endless series of hurdles, each more challenging than the last.
                   </p>
                   <v-alert type="info" variant="tonal" class="mb-3">
-                    <strong>Key Difference:</strong> Hurdle uses over 5,000 English words compared to Wordle's smaller dictionary, 
+                    <strong>Key Difference:</strong> Hurdle uses over 5,000 English words compared to other word games' smaller dictionaries, 
                     making it much more challenging and educational.
                   </v-alert>
                 </v-card-text>
@@ -391,6 +395,28 @@ export default {
   opacity: 0.8;
 }
 
+.v-card {
+  touch-action: manipulation;
+}
+
+.v-card-text {
+  touch-action: pan-y;
+}
+
+.v-btn {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.v-list-item-title {
+  user-select: none;
+}
+
+/* Prevent double-tap zoom on mobile */
+* {
+  touch-action: manipulation;
+}
+
 /* Mobile optimizations */
 @media (max-width: 600px) {
   .v-dialog {
@@ -411,6 +437,20 @@ export default {
   
   .text-h6 {
     font-size: 1.1rem !important;
+  }
+  
+  /* Enhanced mobile touch prevention */
+  .v-btn {
+    touch-action: manipulation !important;
+    user-select: none !important;
+  }
+  
+  .v-card-title {
+    user-select: none !important;
+  }
+  
+  .v-card-text {
+    touch-action: pan-y !important;
   }
 }
 </style>

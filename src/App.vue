@@ -377,7 +377,7 @@ export default {
         const isCurrentlyAnimating = animatingRowIndex.value === guessIndex;
         const row = feedback.map(letterFeedback => ({
           letter: letterFeedback.letter.toUpperCase(),
-          status: isCurrentlyAnimating ? 'filled' : letterFeedback.status, // Don't show colors while animating
+          status: isCurrentlyAnimating ? 'filled' : letterFeedback.status, // Hide colors during animation
           active: false
         }));
         rows.push(row);
@@ -565,7 +565,10 @@ export default {
       // Animate tile flip after clearing current guess
       if (result.guess) {
         await animateTileFlip(result.guess);
-        updateKeyboardState(result.guess);
+        // Only update keyboard state if this isn't a winning guess that will trigger hurdle transition
+        if (result.gameStatus !== 'won') {
+          updateKeyboardState(result.guess);
+        }
       }
       
       if (result.gameStatus === 'won') {
@@ -593,11 +596,14 @@ export default {
         if (!animationCompleted) {
           console.warn('Tile flip animation timed out, forcing completion');
           animatingRowIndex.value = -1;
+          
           // Force apply status classes immediately
           const tiles = document.querySelectorAll(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile`);
           tiles.forEach((tile, index) => {
             if (tile && feedback[index]) {
               tile.classList.remove('flipping');
+              tile.style.backgroundColor = '';
+              tile.style.borderColor = '';
               tile.classList.add(feedback[index].status);
             }
           });
@@ -627,21 +633,43 @@ export default {
         tiles.forEach((tile, i) => {
           setTimeout(() => {
             if (tile && feedback[i]) {
+              console.log(`Starting flip for tile ${i} at ${Date.now()}`);
+              
+              // Capture the current border color (should be white from guessed letter)
+              const currentBorderColor = window.getComputedStyle(tile).borderColor;
+              console.log(`Preserving border color: ${currentBorderColor} for tile ${i}`);
+              
+              // Start with neutral background but preserve the current border
+              tile.classList.remove('correct', 'present', 'absent', 'filled');
               tile.classList.add('flipping');
               
-              // Add the status class halfway through the flip (at 90 degrees)
+              // Force neutral background and preserve the white border
+              tile.style.backgroundColor = '#121213';
+              tile.style.borderColor = currentBorderColor; // Keep the white border
+              
+              // Add the status class halfway through THIS tile's flip (at 90 degrees)
               setTimeout(() => {
                 if (feedback[i]) {
+                  console.log(`Adding color ${feedback[i].status} to tile ${i} at ${Date.now()}`);
+                  // Remove only the background color inline style first
+                  tile.style.backgroundColor = '';
+                  // Add status class which will provide the new background color
                   tile.classList.add(feedback[i].status);
+                  // Small delay to ensure status class background is applied before removing border
+                  setTimeout(() => {
+                    // Now remove the border inline style to let status class border take effect
+                    tile.style.borderColor = '';
+                  }, 10); // 10ms delay to ensure smooth transition
                 }
-              }, 330); // Halfway through the 0.66s animation
+              }, 330); // 330ms after THIS tile starts flipping
               
-              // Remove flipping class when animation completes
+              // Remove flipping class when THIS tile's animation completes
               setTimeout(() => {
+                console.log(`Completing flip for tile ${i} at ${Date.now()}`);
                 tile.classList.remove('flipping');
-              }, 660); // Full flip animation duration (0.66s)
+              }, 660); // 660ms after THIS tile starts flipping
             }
-          }, i * 100); // 100ms stagger between each tile
+          }, i * 100); // Each tile starts 100ms after the previous one
         });
         
         // Wait for all animations to complete properly
@@ -822,10 +850,11 @@ export default {
       
       try {
         // Start hurdle mode session with configuration
-        const maxGuesses = gameConfig.getMaxGuesses();
+        // Use reactive values that are updated immediately in handleConfigChange
+        const maxGuessesValue = maxGuesses.value;
         const frequencyRange = gameConfig.getFrequencyRange();
         const hardMode = gameConfig.getHardMode();
-        const session = await hurdleController.value.startHurdleMode(maxGuesses, frequencyRange, hardMode);
+        const session = await hurdleController.value.startHurdleMode(maxGuessesValue, frequencyRange, hardMode);
         
         // Update UI state
         hurdleGameEnded.value = false;
@@ -856,7 +885,7 @@ export default {
         animatingRowIndex.value = -1;
         gameStateVersion.value++;
         
-        showMessage(`Game started! Complete hurdles to build your score. (${maxGuesses} guesses, ${gameConfig.getDifficulty()} difficulty)`, 'info');
+        showMessage(`Game started! Complete hurdles to build your score. (${maxGuessesValue} guesses, ${gameConfig.getDifficulty()} difficulty)`, 'info');
         setTimeout(() => showMessage('', ''), 4000);
         
       } catch (error) {
@@ -1196,6 +1225,7 @@ export default {
       try {
         // Reset keyboard state first and prevent Vue from restoring it
         resetKeyboardState();
+        console.log('Keyboard state reset for hurdle transition');
         
         // Clear current guess to prevent Vue interference
         currentGuess.value = '';
@@ -1258,14 +1288,20 @@ export default {
         if (autoGuess && autoGuessFeedback.length > 0) {
           // Ensure keyboard is completely reset first
           resetKeyboardState();
+          console.log(`Setting keyboard state for auto-guess "${autoGuess}" against target "${nextTargetWord}"`);
           
           autoGuessFeedback.forEach((feedback, index) => {
             const letter = autoGuess[index].toUpperCase();
             const status = feedback.status;
             
+            console.log(`Setting keyboard: ${letter} = ${status}`);
             // Apply only the auto-guess feedback to keyboard
             keyboardState.value[letter] = status;
           });
+          
+          console.log('Final keyboard state:', keyboardState.value);
+        } else {
+          console.log('No auto-guess provided, keyboard remains empty');
         }
         
         // Force Vue to re-render after animation completes to sync with DOM changes
@@ -1366,8 +1402,8 @@ export default {
         hurdleGameEnded.value = true;
         updateHurdleUI(); // This will update solvedWords for access to all completed words
         
-        // Show game over message
-        showMessage(`Game ended! The word was ${targetWord}`, 'error');
+        // Show game over message with word
+        showMessage(`Game Over! The word was "${targetWord}"`, 'error');
         
         // Show word definition
         await fetchWordDefinition(targetWord);
@@ -1412,7 +1448,7 @@ export default {
       switch (status) {
         case 'correct': return 'success';
         case 'present': return 'warning';
-        case 'absent': return 'grey-darken-2';
+        case 'absent': return 'grey-darken-3';
         default: return 'grey-darken-1';
       }
     };
@@ -1802,6 +1838,12 @@ export default {
 /* Header Styles */
 .header-spacer {
   width: 96px;
+}
+
+.new-game-header-btn {
+  min-width: 80px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
 }
 
 /* Custom Vuetify overrides */

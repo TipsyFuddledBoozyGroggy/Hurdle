@@ -102,11 +102,11 @@ class GameConfig {
       case 'easy':
         return { min: 5.5, max: 7.0 };
       case 'medium':
-        return { min: 4.0, max: 5.49 };
+        return { min: 4.5, max: 6.0 };
       case 'hard':
         return { min: 0, max: 4.0 };
       default:
-        return { min: 4.0, max: 5.49 }; // Default to medium
+        return { min: 4.5, max: 6.0 }; // Default to medium
     }
   }
 
