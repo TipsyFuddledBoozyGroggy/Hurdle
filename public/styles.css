@@ -284,18 +284,22 @@ button:disabled {
   gap: 6px;
   margin: 15px 0 10px 0;
   flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .keyboard-row {
   display: flex;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
+  width: 100%;
 }
 
 .key {
-  min-width: 40px;
+  flex: 1;
+  max-width: calc((100% - 45px) / 10); /* Approximate width for 10 keys in first row with gaps */
   height: 52px;
-  padding: 0 10px;
+  padding: 0 4px;
   font-size: 0.9rem;
   font-weight: bold;
   text-transform: uppercase;
@@ -309,6 +313,22 @@ button:disabled {
   align-items: center;
   justify-content: center;
   touch-action: manipulation;
+  min-width: 0;
+}
+
+/* First row (10 keys) */
+.keyboard-row:first-child .key {
+  max-width: calc((100% - 45px) / 10);
+}
+
+/* Second row (9 keys) */
+.keyboard-row:nth-child(2) .key {
+  max-width: calc((100% - 40px) / 9);
+}
+
+/* Third row (9 keys including wide keys) */
+.keyboard-row:last-child .key {
+  max-width: calc((100% - 40px) / 9);
 }
 
 .key:hover {
@@ -320,7 +340,8 @@ button:disabled {
 }
 
 .key.wide {
-  min-width: 60px;
+  flex: 1.5; /* Make wide keys slightly larger */
+  max-width: calc((100% - 40px) / 6); /* Wider for ENTER and BACKSPACE */
 }
 
 .key.correct {
@@ -486,14 +507,13 @@ button:disabled {
   }
   
   .key {
-    min-width: 28px;
     height: 42px;
-    padding: 0 6px;
+    padding: 0 2px;
     font-size: 0.75rem;
   }
   
   .key.wide {
-    min-width: 45px;
+    flex: 1.5;
   }
   
   .keyboard-row {
@@ -590,14 +610,14 @@ button:disabled {
   }
   
   .key {
-    min-width: 26px;
     height: 38px;
-    padding: 0 4px;
+    padding: 0 2px;
     font-size: 0.7rem;
   }
   
   .key.wide {
-    min-width: 42px;
+    flex: 1.5;
+  }
   }
   
   .keyboard-row {

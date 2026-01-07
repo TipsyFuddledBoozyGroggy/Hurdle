@@ -574,17 +574,24 @@ export default {
 }
 
 @media (max-width: 480px) {
+  .config-page {
+    padding: 0;
+  }
+  
   .config-container {
     height: 100vh;
     width: 100vw;
     max-width: 100vw;
     border-radius: 0;
     border: none;
+    display: flex;
+    flex-direction: column;
   }
   
   .config-header {
     padding: 15px;
     text-align: center;
+    flex-shrink: 0;
   }
   
   .config-header h2 {
@@ -600,10 +607,16 @@ export default {
   
   .config-content {
     padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .config-footer {
     padding: 12px;
+    flex-shrink: 0;
+    background-color: #1a1a1b;
+    border-top: 1px solid #3a3a3c;
   }
   
   .save-btn {
