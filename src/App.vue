@@ -54,8 +54,8 @@
       </div>
     </div>
     
-    <div :class="['message-area', messageType || 'info']" id="message-area">
-      {{ message || `Game started! Complete hurdles to build your score. (${maxGuesses} guesses, ${gameConfig.getDifficulty()} difficulty)` }}
+    <div v-if="message" :class="['message-area', messageType]" id="message-area">
+      {{ message }}
     </div>
     
     <!-- Hurdle Score Display -->
