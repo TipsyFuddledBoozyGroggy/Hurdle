@@ -24,13 +24,14 @@ body {
 }
 
 /* Allow body to scroll when definitions are present */
-body:has(#definition-area) {
+body.has-definitions {
   overflow-y: auto;
 }
 
 #game-container {
   max-width: 500px;
-  width: 100%;
+  width: fit-content;
+  min-width: 320px;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -38,10 +39,11 @@ body:has(#definition-area) {
   justify-content: flex-start;
   touch-action: manipulation;
   overflow-y: visible;
+  margin: 0 auto;
 }
 
 /* When definitions are present, allow container to grow beyond viewport */
-#game-container:has(#definition-area) {
+#game-container.has-definitions {
   min-height: auto;
 }
 
@@ -346,17 +348,29 @@ button:disabled {
 }
 
 .message-area {
-  min-height: 25px;
-  height: 25px;
+  min-height: 30px;
+  max-height: 45px;
   text-align: center;
   font-size: 0.9rem;
-  padding: 8px;
+  padding: 6px;
   border-radius: 4px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1.2;
+  line-height: 1.3;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  width: 100%;
+  box-sizing: border-box;
+  hyphens: auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 40ch; /* Force wrap at approximately 40 characters */
+  margin: 0 auto; /* Center the message area horizontally */
 }
 
 .message-area.error {
@@ -426,10 +440,11 @@ button:disabled {
     gap: 8px;
     max-height: 100vh;
     justify-content: space-between;
+    width: 100%;
   }
 
   /* When definitions are present on mobile, allow scrolling */
-  #game-container:has(#definition-area) {
+  #game-container.has-definitions {
     max-height: none;
     justify-content: flex-start;
   }
@@ -492,9 +507,9 @@ button:disabled {
   
   .message-area {
     font-size: 0.8rem;
-    padding: 6px;
-    min-height: 20px;
-    height: 20px;
+    padding: 5px;
+    min-height: 25px;
+    max-height: 35px;
   }
   
   #definition-area {
@@ -596,9 +611,9 @@ button:disabled {
   
   .message-area {
     font-size: 0.75rem;
-    padding: 5px;
-    min-height: 18px;
-    height: 18px;
+    padding: 4px;
+    min-height: 20px;
+    max-height: 30px;
   }
   
   #definition-area {
@@ -742,8 +757,9 @@ button:disabled {
   
   .message-area {
     font-size: 0.8rem;
-    padding: 5px;
-    min-height: 18px;
+    padding: 4px;
+    min-height: 22px;
+    max-height: 32px;
   }
   
   #definition-area {
@@ -1344,10 +1360,10 @@ button:disabled {
 @media (max-width: 480px) {
   .message-area {
     font-size: 0.75rem;
-    padding: 4px;
-    min-height: 16px;
-    height: 16px;
-    line-height: 1.1;
+    padding: 3px;
+    min-height: 18px;
+    max-height: 28px;
+    line-height: 1.2;
   }
 }
 
@@ -1355,8 +1371,8 @@ button:disabled {
   .message-area {
     font-size: 0.7rem;
     padding: 3px;
-    min-height: 14px;
-    height: 14px;
-    line-height: 1.0;
+    min-height: 16px;
+    max-height: 25px;
+    line-height: 1.1;
   }
 }

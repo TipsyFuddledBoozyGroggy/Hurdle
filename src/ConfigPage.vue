@@ -32,7 +32,6 @@
                 :value="option" 
                 v-model="maxGuesses"
                 :disabled="gameActive"
-                @change="updateMaxGuesses"
               />
               <span class="option-text">{{ option }} guesses</span>
             </label>
@@ -55,7 +54,6 @@
                 :value="option.value" 
                 v-model="difficulty"
                 :disabled="gameActive"
-                @change="updateDifficulty"
               />
               <div class="option-content">
                 <span class="option-text">{{ option.label }}</span>
@@ -75,7 +73,6 @@
                 type="checkbox" 
                 v-model="showDefinitions"
                 :disabled="gameActive"
-                @change="updateShowDefinitions"
               />
               <span class="toggle-slider" :class="{ disabled: gameActive }"></span>
               <span class="toggle-text">Show word definitions</span>
@@ -93,7 +90,6 @@
                 type="checkbox" 
                 v-model="hardMode"
                 :disabled="gameActive"
-                @change="updateHardMode"
               />
               <span class="toggle-slider" :class="{ disabled: gameActive }"></span>
               <span class="toggle-text">Enable hard mode</span>
@@ -117,7 +113,7 @@
       </div>
 
       <div class="config-footer">
-        <button @click="$emit('close')" class="save-btn">
+        <button @click="saveSettings" class="save-btn">
           Save & Close
         </button>
       </div>
@@ -141,7 +137,7 @@ export default {
   setup(props, { emit }) {
     const gameConfig = new GameConfig();
     
-    // Reactive data
+    // Reactive data - these are local state, not immediately saved
     const maxGuesses = ref(4);
     const difficulty = ref('medium');
     const showDefinitions = ref(true);
@@ -167,7 +163,7 @@ export default {
       }
     ];
 
-    // Load current settings
+    // Load current settings from GameConfig into local state
     const loadSettings = () => {
       const settings = gameConfig.getAllSettings();
       maxGuesses.value = settings.maxGuesses;
@@ -176,31 +172,45 @@ export default {
       hardMode.value = settings.hardMode;
     };
 
-    // Update methods
-    const updateMaxGuesses = () => {
+    // Save all settings to GameConfig and emit changes
+    const saveSettings = () => {
+      // Apply all settings at once
       gameConfig.setMaxGuesses(maxGuesses.value);
-      emit('configChanged', 'maxGuesses', maxGuesses.value);
-    };
-
-    const updateDifficulty = () => {
       gameConfig.setDifficulty(difficulty.value);
-      emit('configChanged', 'difficulty', difficulty.value);
-    };
-
-    const updateShowDefinitions = () => {
       gameConfig.setShowDefinitions(showDefinitions.value);
-      emit('configChanged', 'showDefinitions', showDefinitions.value);
-    };
-
-    const updateHardMode = () => {
       gameConfig.setHardMode(hardMode.value);
-      emit('configChanged', 'hardMode', hardMode.value);
+      
+      // Emit single config changed event with all settings
+      emit('configChanged', 'all', {
+        maxGuesses: maxGuesses.value,
+        difficulty: difficulty.value,
+        showDefinitions: showDefinitions.value,
+        hardMode: hardMode.value
+      });
+      
+      // Close the config page
+      emit('close');
     };
 
     const resetSettings = () => {
+      // Reset to defaults in local state
+      const defaults = {
+        maxGuesses: 4,
+        difficulty: 'medium',
+        showDefinitions: true,
+        hardMode: false
+      };
+      
+      maxGuesses.value = defaults.maxGuesses;
+      difficulty.value = defaults.difficulty;
+      showDefinitions.value = defaults.showDefinitions;
+      hardMode.value = defaults.hardMode;
+      
+      // Apply the reset to GameConfig
       gameConfig.resetToDefaults();
-      loadSettings(); // This will update all reactive values including hardMode
-      emit('configChanged', 'reset', null);
+      
+      // Emit config changed event
+      emit('configChanged', 'reset', defaults);
     };
 
     // Initialize
@@ -215,10 +225,7 @@ export default {
       hardMode,
       guessOptions,
       difficultyOptions,
-      updateMaxGuesses,
-      updateDifficulty,
-      updateShowDefinitions,
-      updateHardMode,
+      saveSettings,
       resetSettings
     };
   }
@@ -911,7 +918,7 @@ export default {
     justify-content: stretch;
   }
   
-  .config-page > div {
+  .config-container {
     max-height: 100vh;
     height: 100vh;
     width: 100vw;

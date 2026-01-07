@@ -1,5 +1,5 @@
 <template>
-  <div id="game-container">
+  <div id="game-container" :class="{ 'has-definitions': definition && gameConfig.getShowDefinitions() && configVersion >= 0 }">
     <header>
       <div class="header-top">
         <button 
@@ -54,8 +54,8 @@
       </div>
     </div>
     
-    <div v-if="message" :class="['message-area', messageType]" id="message-area">
-      {{ message }}
+    <div :class="['message-area', messageType || 'info']" id="message-area">
+      {{ message || `Game started! Complete hurdles to build your score. (${maxGuesses} guesses, ${gameConfig.getDifficulty()} difficulty)` }}
     </div>
     
     <!-- Hurdle Score Display -->
@@ -135,7 +135,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import FeedbackGenerator from './FeedbackGenerator.js';
 import GameConfig from './GameConfig.js';
 import ConfigPage from './ConfigPage.vue';
@@ -1349,14 +1349,29 @@ export default {
     const handleConfigChange = (setting, value) => {
       console.log(`Configuration changed: ${setting} = ${value}`);
       
-      // Update reactive values immediately for instant UI feedback
-      if (setting === 'maxGuesses') {
+      // Handle batch update of all settings
+      if (setting === 'all') {
+        // Update all reactive values from the settings object
+        maxGuesses.value = value.maxGuesses;
+        // Force UI update for all settings
+        configVersion.value++;
+        
+        showMessage('Settings saved. Restarting game...', 'info');
+      } else if (setting === 'maxGuesses') {
+        // Update reactive values immediately for instant UI feedback
         maxGuesses.value = value;
+        showMessage('Settings saved. Restarting game...', 'info');
       } else if (setting === 'reset') {
         // Update all reactive values when reset
         maxGuesses.value = gameConfig.getMaxGuesses();
         // Force UI update for all settings
         configVersion.value++;
+        showMessage('Settings reset to defaults. Restarting game...', 'info');
+      } else if (setting === 'hardMode') {
+        const hardModeStatus = value ? 'enabled' : 'disabled';
+        showMessage(`Hard mode ${hardModeStatus}. Restarting game...`, 'info');
+      } else {
+        showMessage('Settings saved. Restarting game...', 'info');
       }
       
       // Force immediate update of reactive properties
@@ -1368,16 +1383,6 @@ export default {
         // Force Vue to re-render the board with new configuration
         configVersion.value++;
       });
-      
-      // Show message about configuration change and auto-restart
-      if (setting === 'reset') {
-        showMessage('Settings reset to defaults. Restarting game...', 'info');
-      } else if (setting === 'hardMode') {
-        const hardModeStatus = value ? 'enabled' : 'disabled';
-        showMessage(`Hard mode ${hardModeStatus}. Restarting game...`, 'info');
-      } else {
-        showMessage('Settings saved. Restarting game...', 'info');
-      }
       
       // Automatically restart the game with new settings after a short delay
       setTimeout(async () => {
@@ -1416,6 +1421,19 @@ export default {
     onUnmounted(() => {
       document.removeEventListener('keydown', handleGlobalKeydown);
     });
+    
+    // Watch for definition changes to manage body class
+    watch(
+      () => definition.value && gameConfig.getShowDefinitions() && configVersion.value >= 0,
+      (hasDefinitions) => {
+        if (hasDefinitions) {
+          document.body.classList.add('has-definitions');
+        } else {
+          document.body.classList.remove('has-definitions');
+        }
+      },
+      { immediate: true }
+    );
     
     return {
       gameConfig,
