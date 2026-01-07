@@ -9,6 +9,22 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent double-tap zoom on all interactive elements */
+button, .key, .letter-tile, .config-btn, .solved-word-btn, .close-definition-btn {
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Prevent zoom on any clickable elements */
+[onclick], [role="button"], .clickable {
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Allow text selection for specific elements */
@@ -30,6 +46,13 @@ html {
   height: 100%;
   overflow-x: hidden;
   background-color: #121213 !important;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  /* Prevent zoom on iOS Safari */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 body {
@@ -45,6 +68,11 @@ body {
   overflow-y: auto;
   touch-action: manipulation;
   margin: 0;
+  /* Additional iOS Safari zoom prevention */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Allow body to scroll when definitions are present */
