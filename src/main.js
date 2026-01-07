@@ -1,6 +1,7 @@
-// Hurdle - Main Entry Point (Vue 3)
+// Hurdle - Main Entry Point (Vue 3 with Vuetify)
 import { createApp } from 'vue';
 import App from './App.vue';
+import vuetify from './plugins/vuetify';
 
 // Import game modules
 const Dictionary = require('./Dictionary');
@@ -59,6 +60,7 @@ async function initializeApp() {
       dictionary
     });
     
+    app.use(vuetify);
     app.mount('#app');
     
     console.log('Hurdle - Ready to play!');
@@ -107,6 +109,7 @@ async function loadMainDictionary() {
     dictionary
   });
   
+  app.use(vuetify);
   app.mount('#app');
   
   console.log('Hurdle - Ready to play!');

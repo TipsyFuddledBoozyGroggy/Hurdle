@@ -1,129 +1,243 @@
 <template>
-  <div id="game-container" :class="{ 'has-definitions': definition && gameConfig.getShowDefinitions() && configVersion >= 0 }">
-    <header>
-      <div class="header-top">
-        <button 
-          @click="showConfigPage = true" 
-          class="config-btn" 
-          :class="{ disabled: isGameActive }"
-          :disabled="isGameActive"
-          :title="isGameActive ? 'Settings disabled during gameplay' : 'Settings'"
-        >
-          ⚙️
-        </button>
-        <h1>Hurdle</h1>
-        <div class="header-spacer"></div>
-      </div>
-      <!-- Progress Display -->
-      <div class="hurdle-progress">
-        <div class="hurdle-info">
-          <span class="hurdle-number">Hurdle {{ hurdleNumber }}</span>
-          <span class="completed-count">Completed: {{ completedHurdlesCount }}</span>
-          <span class="current-score">Score: {{ totalScore }}</span>
-          <span v-if="gameConfig.getHardMode()" class="hard-mode-indicator">HARD MODE</span>
-        </div>
-      </div>
-    </header>
-    
-    <div id="game-board">
-      <div v-for="(row, index) in boardRows" :key="index" class="guess-row">
-        <div 
-          v-for="(tile, tileIndex) in row" 
-          :key="tileIndex"
-          :class="['letter-tile', tile.status, { active: tile.active }]"
-        >
-          {{ tile.letter }}
-        </div>
-      </div>
-    </div>
-    
-    <!-- Input is now handled through the on-screen keyboard and direct typing -->
-    
-    <div id="keyboard">
-      <div v-for="(row, index) in keyboardLayout" :key="index" class="keyboard-row">
-        <button
-          v-for="key in row"
-          :key="key"
-          :class="['key', { wide: key === 'ENTER' || key === 'BACKSPACE' }, keyboardState[key]]"
-          :data-key="key"
-          :disabled="!isInitialized"
-          @click="handleKeyPress(key)"
-        >
-          {{ key === 'BACKSPACE' ? '⌫' : key }}
-        </button>
-      </div>
-    </div>
-    
-    <div v-if="message" :class="['message-area', messageType]" id="message-area">
-      {{ message }}
-    </div>
-    
-    <!-- Hurdle Score Display -->
-    <div v-if="lastHurdleScore > 0" class="hurdle-score-display">
-      <div class="score-notification">
-        +{{ lastHurdleScore }} points for Hurdle {{ lastCompletedHurdleNumber }}!
-      </div>
-    </div>
-    
-    <div v-if="definition && gameConfig.getShowDefinitions() && configVersion >= 0" id="definition-area">
-      <div class="word-title">{{ definition.word }}</div>
-      <div v-for="(def, index) in definition.definitions" :key="index" class="definition-item">
-        <div class="definition-text">
-          <em>{{ def.partOfSpeech }}</em> - {{ def.text }}
-        </div>
-      </div>
-    </div>
-    
-    <button @click="handleNewGame" id="new-game-btn">
-      New Game
-    </button>
-    
-    <!-- Game End Summary -->
-    <div v-if="hurdleGameEnded" class="hurdle-end-summary">
-      <h3>Game Complete!</h3>
-      <div class="summary-stats">
-        <div class="stat">
-          <span class="stat-label">Hurdles Completed:</span>
-          <span class="stat-value">{{ completedHurdlesCount }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Final Score:</span>
-          <span class="stat-value">{{ totalScore }}</span>
-        </div>
-      </div>
-      
-      <!-- Solved Words Access (Requirement 8.3) -->
-      <div v-if="solvedWords.length > 0" class="solved-words-section">
-        <h4>Words You Solved:</h4>
-        <div class="solved-words-list">
-          <button 
-            v-for="word in solvedWords" 
-            :key="word"
-            @click="viewWordDefinition(word)"
-            class="solved-word-btn"
-            :class="{ active: selectedWordForDefinition === word }"
-          >
-            {{ word.toUpperCase() }}
-          </button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Word Definition Viewer for Solved Words -->
-    <div v-if="selectedWordDefinition" class="word-definition-viewer">
-      <div class="definition-header">
-        <h4>{{ selectedWordDefinition.word.toUpperCase() }}</h4>
-        <button @click="closeWordDefinition" class="close-definition-btn">×</button>
-      </div>
-      <div class="definition-content">
-        <div v-for="(def, index) in selectedWordDefinition.definitions" :key="index" class="definition-item">
-          <div class="definition-text">
-            <em>{{ def.partOfSpeech }}</em> - {{ def.text }}
-          </div>
-        </div>
-      </div>
-    </div>
-    
+  <v-app>
+    <v-main>
+      <v-container fluid class="game-container pa-2">
+        <!-- Header -->
+        <v-row justify="center" class="mb-4">
+          <v-col cols="12" class="text-center">
+            <div class="header-top d-flex align-center justify-space-between">
+              <v-btn
+                icon
+                @click="showConfigPage = true"
+                :disabled="isGameActive"
+                :title="isGameActive ? 'Settings disabled during gameplay' : 'Settings'"
+                class="config-btn"
+              >
+                <v-icon>mdi-cog</v-icon>
+              </v-btn>
+              
+              <h1 class="text-h3 font-weight-bold">Hurdle</h1>
+              
+              <div class="header-spacer" style="width: 48px;"></div>
+            </div>
+            
+            <!-- Progress Display -->
+            <div class="hurdle-progress mt-2">
+              <div class="hurdle-info d-flex flex-wrap justify-center align-center ga-2">
+                <v-chip color="primary" variant="outlined" size="small">
+                  Hurdle {{ hurdleNumber }}
+                </v-chip>
+                <v-chip color="success" variant="outlined" size="small">
+                  Completed: {{ completedHurdlesCount }}
+                </v-chip>
+                <v-chip color="warning" variant="outlined" size="small">
+                  Score: {{ totalScore }}
+                </v-chip>
+                <v-chip 
+                  v-if="gameConfig.getHardMode()" 
+                  color="error" 
+                  variant="outlined" 
+                  size="small"
+                >
+                  HARD MODE
+                </v-chip>
+              </div>
+            </div>
+          </v-col>
+        </v-row>
+        <!-- Game Board -->
+        <v-row justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <div class="game-board">
+              <v-row 
+                v-for="(row, index) in boardRows" 
+                :key="index" 
+                class="guess-row ma-0 mb-1"
+                no-gutters
+              >
+                <v-col 
+                  v-for="(tile, tileIndex) in row" 
+                  :key="tileIndex"
+                  class="pa-1"
+                >
+                  <v-card
+                    :class="['letter-tile', tile.status, { active: tile.active }]"
+                    :color="getTileColor(tile.status)"
+                    variant="outlined"
+                    height="60"
+                    class="d-flex align-center justify-center"
+                  >
+                    <span class="text-h5 font-weight-bold">{{ tile.letter }}</span>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </div>
+          </v-col>
+        </v-row>
+        <!-- Keyboard -->
+        <v-row justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <div class="keyboard">
+              <v-row 
+                v-for="(row, index) in keyboardLayout" 
+                :key="index" 
+                class="keyboard-row ma-0 mb-1"
+                justify="center"
+                no-gutters
+              >
+                <v-col
+                  v-for="key in row"
+                  :key="key"
+                  class="pa-1"
+                  :cols="key === 'ENTER' || key === 'BACKSPACE' ? 2 : 1"
+                >
+                  <v-btn
+                    :class="['key', keyboardState[key]]"
+                    :color="getKeyColor(keyboardState[key])"
+                    :disabled="!isInitialized"
+                    @click="handleKeyPress(key)"
+                    height="48"
+                    block
+                    variant="elevated"
+                    :size="key === 'ENTER' || key === 'BACKSPACE' ? 'small' : 'default'"
+                  >
+                    {{ key === 'BACKSPACE' ? '⌫' : key }}
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </div>
+          </v-col>
+        </v-row>
+        <!-- Message Area -->
+        <v-row v-if="message" justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-alert
+              :type="getAlertType(messageType)"
+              :color="getAlertColor(messageType)"
+              variant="tonal"
+              class="text-center"
+            >
+              {{ message }}
+            </v-alert>
+          </v-col>
+        </v-row>
+
+        <!-- Hurdle Score Display -->
+        <v-row v-if="lastHurdleScore > 0" justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-alert
+              type="success"
+              color="success"
+              variant="tonal"
+              class="text-center"
+            >
+              +{{ lastHurdleScore }} points for Hurdle {{ lastCompletedHurdleNumber }}!
+            </v-alert>
+          </v-col>
+        </v-row>
+        <!-- Word Definition -->
+        <v-row v-if="definition && gameConfig.getShowDefinitions() && configVersion >= 0" justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-card>
+              <v-card-title class="text-h6 font-weight-bold text-center">
+                {{ definition.word.toUpperCase() }}
+              </v-card-title>
+              <v-card-text>
+                <div v-for="(def, index) in definition.definitions" :key="index" class="mb-2">
+                  <v-chip size="small" color="primary" variant="outlined" class="mr-2">
+                    {{ def.partOfSpeech }}
+                  </v-chip>
+                  <span>{{ def.text }}</span>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- New Game Button -->
+        <v-row justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-btn
+              @click="handleNewGame"
+              color="primary"
+              size="large"
+              block
+              variant="elevated"
+            >
+              New Game
+            </v-btn>
+          </v-col>
+        </v-row>
+        <!-- Game End Summary -->
+        <v-row v-if="hurdleGameEnded" justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-card>
+              <v-card-title class="text-h5 text-center">
+                Game Complete!
+              </v-card-title>
+              <v-card-text>
+                <v-row class="text-center">
+                  <v-col cols="6">
+                    <div class="text-h6 font-weight-bold">{{ completedHurdlesCount }}</div>
+                    <div class="text-caption">Hurdles Completed</div>
+                  </v-col>
+                  <v-col cols="6">
+                    <div class="text-h6 font-weight-bold">{{ totalScore }}</div>
+                    <div class="text-caption">Final Score</div>
+                  </v-col>
+                </v-row>
+                
+                <!-- Solved Words Access -->
+                <div v-if="solvedWords.length > 0" class="mt-4">
+                  <v-divider class="mb-3"></v-divider>
+                  <h4 class="text-h6 mb-3">Words You Solved:</h4>
+                  <div class="d-flex flex-wrap ga-2">
+                    <v-chip
+                      v-for="word in solvedWords"
+                      :key="word"
+                      @click="viewWordDefinition(word)"
+                      :color="selectedWordForDefinition === word ? 'primary' : 'default'"
+                      :variant="selectedWordForDefinition === word ? 'elevated' : 'outlined'"
+                      clickable
+                    >
+                      {{ word.toUpperCase() }}
+                    </v-chip>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Word Definition Viewer for Solved Words -->
+        <v-row v-if="selectedWordDefinition" justify="center" class="mb-4">
+          <v-col cols="12" sm="8" md="6" lg="4">
+            <v-card>
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="text-h6">{{ selectedWordDefinition.word.toUpperCase() }}</span>
+                <v-btn
+                  @click="closeWordDefinition"
+                  icon
+                  size="small"
+                  variant="text"
+                >
+                  <v-icon>mdi-close</v-icon>
+                </v-btn>
+              </v-card-title>
+              <v-card-text>
+                <div v-for="(def, index) in selectedWordDefinition.definitions" :key="index" class="mb-2">
+                  <v-chip size="small" color="primary" variant="outlined" class="mr-2">
+                    {{ def.partOfSpeech }}
+                  </v-chip>
+                  <span>{{ def.text }}</span>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-main>
+
     <!-- Configuration Page -->
     <ConfigPage 
       v-if="showConfigPage"
@@ -131,7 +245,7 @@
       @close="showConfigPage = false"
       @configChanged="handleConfigChange"
     />
-  </div>
+  </v-app>
 </template>
 
 <script>
@@ -1245,6 +1359,45 @@ export default {
       selectedWordDefinition.value = null;
     };
 
+    // Vuetify helper methods
+    const getTileColor = (status) => {
+      switch (status) {
+        case 'correct': return 'success';
+        case 'present': return 'warning';
+        case 'absent': return 'grey-darken-2';
+        case 'filled': return 'grey-darken-4';
+        case 'active': return 'primary';
+        default: return 'grey-darken-4';
+      }
+    };
+
+    const getKeyColor = (status) => {
+      switch (status) {
+        case 'correct': return 'success';
+        case 'present': return 'warning';
+        case 'absent': return 'grey-darken-2';
+        default: return 'grey-darken-1';
+      }
+    };
+
+    const getAlertType = (messageType) => {
+      switch (messageType) {
+        case 'error': return 'error';
+        case 'success': return 'success';
+        case 'info': return 'info';
+        default: return 'info';
+      }
+    };
+
+    const getAlertColor = (messageType) => {
+      switch (messageType) {
+        case 'error': return 'error';
+        case 'success': return 'success';
+        case 'info': return 'info';
+        default: return 'primary';
+      }
+    };
+
     const fetchWordDefinitionData = async (word) => {
       try {
         // Check if fetch is available (browser environment)
@@ -1469,10 +1622,85 @@ export default {
       handleConfigChange,
       // Word Definition Methods
       viewWordDefinition,
-      closeWordDefinition
+      closeWordDefinition,
+      // Vuetify Helper Methods
+      getTileColor,
+      getKeyColor,
+      getAlertType,
+      getAlertColor
     };
   }
 };
 </script>
 
-<style src="../public/styles.css"></style>
+<style scoped>
+.game-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.letter-tile {
+  transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
+}
+
+.letter-tile.flipping {
+  animation: flip 0.66s ease-in-out;
+}
+
+@keyframes flip {
+  0% { transform: rotateX(0deg); }
+  50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+
+.letter-tile.active {
+  animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.key {
+  font-family: 'Roboto', sans-serif;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.header-spacer {
+  width: 48px;
+}
+
+/* Custom Vuetify overrides */
+.v-card.letter-tile {
+  border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.v-card.letter-tile.active {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.v-btn.key {
+  min-height: 48px;
+  font-size: 0.875rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+  .game-container {
+    padding: 8px !important;
+  }
+  
+  .letter-tile {
+    height: 50px !important;
+  }
+  
+  .v-btn.key {
+    min-height: 40px;
+    font-size: 0.75rem;
+  }
+}
+</style>
