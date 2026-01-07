@@ -6,19 +6,29 @@
         <v-row justify="center" class="mb-4">
           <v-col cols="12" class="text-center">
             <div class="header-top d-flex align-center justify-space-between">
-              <v-btn
-                icon
-                @click="showConfigPage = true"
-                :disabled="isGameActive"
-                :title="isGameActive ? 'Settings disabled during gameplay' : 'Settings'"
-                class="config-btn"
-              >
-                <v-icon>mdi-cog</v-icon>
-              </v-btn>
+              <div class="d-flex ga-2">
+                <v-btn
+                  icon
+                  @click="showConfigPage = true"
+                  :disabled="isGameActive"
+                  :title="isGameActive ? 'Settings disabled during gameplay' : 'Settings'"
+                  class="config-btn"
+                >
+                  <v-icon>mdi-cog</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  @click="showRulesPage = true"
+                  :title="'Game Rules & Scoring'"
+                  class="rules-btn"
+                >
+                  <v-icon>mdi-help-circle</v-icon>
+                </v-btn>
+              </div>
               
               <h1 class="text-h3 font-weight-bold">Hurdle</h1>
               
-              <div class="header-spacer" style="width: 48px;"></div>
+              <div class="header-spacer" style="width: 96px;"></div>
             </div>
             
             <!-- Progress Display -->
@@ -47,27 +57,29 @@
         </v-row>
         <!-- Game Board -->
         <v-row justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <div class="game-board">
               <v-row 
                 v-for="(row, index) in boardRows" 
                 :key="index" 
-                class="guess-row ma-0 mb-1"
+                class="guess-row ma-0 mb-2"
                 no-gutters
+                justify="center"
               >
                 <v-col 
                   v-for="(tile, tileIndex) in row" 
                   :key="tileIndex"
+                  cols="2"
                   class="pa-1"
+                  style="max-width: 70px;"
                 >
                   <v-card
                     :class="['letter-tile', tile.status, { active: tile.active }]"
                     :color="getTileColor(tile.status)"
                     variant="outlined"
-                    height="60"
-                    class="d-flex align-center justify-center"
+                    class="d-flex align-center justify-center tile-square"
                   >
-                    <span class="text-h5 font-weight-bold">{{ tile.letter }}</span>
+                    <span class="tile-letter text-h4 font-weight-bold">{{ tile.letter }}</span>
                   </v-card>
                 </v-col>
               </v-row>
@@ -76,12 +88,12 @@
         </v-row>
         <!-- Keyboard -->
         <v-row justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <div class="keyboard">
               <v-row 
                 v-for="(row, index) in keyboardLayout" 
                 :key="index" 
-                class="keyboard-row ma-0 mb-1"
+                class="keyboard-row ma-0 mb-2"
                 justify="center"
                 no-gutters
               >
@@ -89,19 +101,19 @@
                   v-for="key in row"
                   :key="key"
                   class="pa-1"
-                  :cols="key === 'ENTER' || key === 'BACKSPACE' ? 2 : 1"
+                  :style="getKeyColumnStyle(key, row.length)"
                 >
                   <v-btn
                     :class="['key', keyboardState[key]]"
                     :color="getKeyColor(keyboardState[key])"
                     :disabled="!isInitialized"
                     @click="handleKeyPress(key)"
-                    height="48"
+                    :height="getKeyHeight()"
                     block
                     variant="elevated"
-                    :size="key === 'ENTER' || key === 'BACKSPACE' ? 'small' : 'default'"
+                    :size="getKeySize(key)"
                   >
-                    {{ key === 'BACKSPACE' ? '⌫' : key }}
+                    <span class="key-text">{{ key === 'BACKSPACE' ? '⌫' : key }}</span>
                   </v-btn>
                 </v-col>
               </v-row>
@@ -110,12 +122,12 @@
         </v-row>
         <!-- Message Area -->
         <v-row v-if="message" justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-alert
               :type="getAlertType(messageType)"
               :color="getAlertColor(messageType)"
               variant="tonal"
-              class="text-center"
+              class="text-center message-alert"
             >
               {{ message }}
             </v-alert>
@@ -124,7 +136,7 @@
 
         <!-- Hurdle Score Display -->
         <v-row v-if="lastHurdleScore > 0" justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-alert
               type="success"
               color="success"
@@ -137,7 +149,7 @@
         </v-row>
         <!-- Word Definition -->
         <v-row v-if="definition && gameConfig.getShowDefinitions() && configVersion >= 0" justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-card>
               <v-card-title class="text-h6 font-weight-bold text-center">
                 {{ definition.word.toUpperCase() }}
@@ -156,7 +168,7 @@
 
         <!-- New Game Button -->
         <v-row justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-btn
               @click="handleNewGame"
               color="primary"
@@ -170,7 +182,7 @@
         </v-row>
         <!-- Game End Summary -->
         <v-row v-if="hurdleGameEnded" justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-card>
               <v-card-title class="text-h5 text-center">
                 Game Complete!
@@ -211,7 +223,7 @@
 
         <!-- Word Definition Viewer for Solved Words -->
         <v-row v-if="selectedWordDefinition" justify="center" class="mb-4">
-          <v-col cols="12" sm="8" md="6" lg="4">
+          <v-col cols="12" sm="10" md="8" lg="6" xl="4">
             <v-card>
               <v-card-title class="d-flex justify-space-between align-center">
                 <span class="text-h6">{{ selectedWordDefinition.word.toUpperCase() }}</span>
@@ -245,6 +257,12 @@
       @close="showConfigPage = false"
       @configChanged="handleConfigChange"
     />
+
+    <!-- Game Rules Page -->
+    <GameRulesPage 
+      v-if="showRulesPage"
+      @close="showRulesPage = false"
+    />
   </v-app>
 </template>
 
@@ -253,11 +271,13 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import FeedbackGenerator from './FeedbackGenerator.js';
 import GameConfig from './GameConfig.js';
 import ConfigPage from './ConfigPage.vue';
+import GameRulesPage from './GameRulesPage.vue';
 
 export default {
   name: 'App',
   components: {
-    ConfigPage
+    ConfigPage,
+    GameRulesPage
   },
   props: {
     gameController: {
@@ -272,6 +292,7 @@ export default {
   setup(props) {
     const gameConfig = new GameConfig();
     const showConfigPage = ref(false);
+    const showRulesPage = ref(false);
     const configVersion = ref(0); // Force reactivity for config changes
     const maxGuesses = ref(gameConfig.getMaxGuesses()); // Reactive max guesses
     
@@ -584,23 +605,44 @@ export default {
       }, animationTimeout);
       
       try {
+        // Get all tiles in the current row
+        const rowSelector = `.guess-row:nth-child(${currentRowIndex + 1})`;
+        const row = document.querySelector(rowSelector);
+        
+        if (!row) {
+          console.warn('Row not found for animation');
+          animatingRowIndex.value = -1;
+          return;
+        }
+        
+        const tiles = row.querySelectorAll('.letter-tile');
+        
+        if (tiles.length === 0) {
+          console.warn('No tiles found for animation');
+          animatingRowIndex.value = -1;
+          return;
+        }
+        
         // Add flip animation to each tile with a delay
-        for (let i = 0; i < 5; i++) {
+        tiles.forEach((tile, i) => {
           setTimeout(() => {
-            const tile = document.querySelector(`.guess-row:nth-child(${currentRowIndex + 1}) .letter-tile:nth-child(${i + 1})`);
-            if (tile) {
+            if (tile && feedback[i]) {
               tile.classList.add('flipping');
+              
               // Add the status class halfway through the flip (at 90 degrees)
               setTimeout(() => {
-                tile.classList.add(feedback[i].status);
+                if (feedback[i]) {
+                  tile.classList.add(feedback[i].status);
+                }
               }, 330); // Halfway through the 0.66s animation
+              
               // Remove flipping class when animation completes
               setTimeout(() => {
                 tile.classList.remove('flipping');
               }, 660); // Full flip animation duration (0.66s)
             }
-          }, i * 100); // Reduced stagger to 100ms between each tile for smoother animation
-        }
+          }, i * 100); // 100ms stagger between each tile
+        });
         
         // Wait for all animations to complete properly
         // Last tile starts at 400ms (4 * 100ms) + 660ms animation = 1060ms total
@@ -609,7 +651,7 @@ export default {
         animationCompleted = true;
         clearTimeout(timeoutId);
         
-        // Clear animating state - no need to force re-render since colors are already applied
+        // Clear animating state
         animatingRowIndex.value = -1;
         
       } catch (error) {
@@ -1361,14 +1403,9 @@ export default {
 
     // Vuetify helper methods
     const getTileColor = (status) => {
-      switch (status) {
-        case 'correct': return 'success';
-        case 'present': return 'warning';
-        case 'absent': return 'grey-darken-2';
-        case 'filled': return 'grey-darken-4';
-        case 'active': return 'primary';
-        default: return 'grey-darken-4';
-      }
+      // Return undefined to let CSS handle the colors via class-based styling
+      // This prevents Vuetify's color system from conflicting with our custom colors
+      return undefined;
     };
 
     const getKeyColor = (status) => {
@@ -1396,6 +1433,51 @@ export default {
         case 'info': return 'info';
         default: return 'primary';
       }
+    };
+
+    // Responsive keyboard helper methods
+    const getKeyColumnStyle = (key, rowLength) => {
+      const isWideKey = key === 'ENTER' || key === 'BACKSPACE';
+      
+      if (isWideKey) {
+        return { 
+          'flex': '0 0 auto', 
+          'max-width': '80px', 
+          'min-width': '60px',
+          'width': '70px'
+        };
+      }
+      
+      // For regular keys, use equal distribution
+      return { 
+        'flex': '1 1 0',
+        'max-width': '50px',
+        'min-width': '30px'
+      };
+    };
+
+    const getKeyHeight = () => {
+      // Responsive key height based on screen size
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth <= 600) return 40;
+        if (window.innerWidth <= 959) return 44;
+        if (window.innerWidth <= 1279) return 48;
+        return 52;
+      }
+      return 48;
+    };
+
+    const getKeySize = (key) => {
+      const isWideKey = key === 'ENTER' || key === 'BACKSPACE';
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth <= 600) {
+          return isWideKey ? 'x-small' : 'small';
+        }
+        if (window.innerWidth <= 959) {
+          return isWideKey ? 'small' : 'default';
+        }
+      }
+      return isWideKey ? 'small' : 'default';
     };
 
     const fetchWordDefinitionData = async (word) => {
@@ -1591,6 +1673,7 @@ export default {
     return {
       gameConfig,
       showConfigPage,
+      showRulesPage,
       configVersion,
       maxGuesses,
       currentGuess,
@@ -1627,7 +1710,11 @@ export default {
       getTileColor,
       getKeyColor,
       getAlertType,
-      getAlertColor
+      getAlertColor,
+      // Responsive Helper Methods
+      getKeyColumnStyle,
+      getKeyHeight,
+      getKeySize
     };
   }
 };
@@ -1635,23 +1722,45 @@ export default {
 
 <style scoped>
 .game-container {
-  max-width: 600px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
-.letter-tile {
+/* Game Board Styles */
+.game-board {
+  max-width: 350px;
+  margin: 0 auto;
+}
+
+.tile-square {
+  aspect-ratio: 1;
+  min-height: 60px;
+  max-height: 70px;
   transition: all 0.3s ease;
   font-family: 'Roboto', sans-serif;
 }
 
+.tile-letter {
+  color: white !important;
+  text-shadow: none;
+  font-weight: 700 !important;
+}
+
 .letter-tile.flipping {
-  animation: flip 0.66s ease-in-out;
+  animation: flip 0.66s ease-in-out !important;
+  transition: none !important;
 }
 
 @keyframes flip {
-  0% { transform: rotateX(0deg); }
-  50% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0deg); }
+  0% { 
+    transform: rotateX(0deg); 
+  }
+  50% { 
+    transform: rotateX(90deg); 
+  }
+  100% { 
+    transform: rotateX(0deg); 
+  }
 }
 
 .letter-tile.active {
@@ -1664,43 +1773,197 @@ export default {
   100% { transform: scale(1); }
 }
 
+/* Keyboard Styles */
+.keyboard {
+  max-width: 350px;
+  margin: 0 auto;
+}
+
 .key {
   font-family: 'Roboto', sans-serif;
   text-transform: uppercase;
   font-weight: 500;
+  min-height: 48px;
 }
 
+.key-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Message Area */
+.message-alert {
+  max-width: 40ch;
+  margin: 0 auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Header Styles */
 .header-spacer {
-  width: 48px;
+  width: 96px;
 }
 
 /* Custom Vuetify overrides */
 .v-card.letter-tile {
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid #3a3a3c !important;
 }
 
 .v-card.letter-tile.active {
-  border-color: rgb(var(--v-theme-primary));
+  border-color: #818384 !important;
 }
 
-.v-btn.key {
-  min-height: 48px;
-  font-size: 0.875rem;
+/* Responsive Design */
+@media (min-width: 960px) {
+  /* Desktop styles */
+  .game-container {
+    padding: 24px !important;
+  }
+  
+  .game-board {
+    max-width: 400px;
+  }
+  
+  .keyboard {
+    max-width: 400px;
+  }
+  
+  .tile-square {
+    min-height: 70px;
+    max-height: 80px;
+  }
+  
+  .tile-letter {
+    font-size: 2rem !important;
+  }
+  
+  .key {
+    min-height: 52px;
+  }
+  
+  .key-text {
+    font-size: 1rem;
+  }
 }
 
-/* Mobile responsiveness */
+@media (min-width: 1280px) {
+  /* Large desktop styles */
+  .game-container {
+    padding: 32px !important;
+  }
+  
+  .game-board {
+    max-width: 450px;
+  }
+  
+  .keyboard {
+    max-width: 450px;
+  }
+  
+  .tile-square {
+    min-height: 75px;
+    max-height: 85px;
+  }
+  
+  .tile-letter {
+    font-size: 2.25rem !important;
+  }
+  
+  .key {
+    min-height: 56px;
+  }
+  
+  .key-text {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 959px) {
+  /* Tablet styles */
+  .game-container {
+    padding: 16px !important;
+  }
+  
+  .tile-square {
+    min-height: 55px;
+    max-height: 65px;
+  }
+  
+  .tile-letter {
+    font-size: 1.5rem !important;
+  }
+  
+  .key {
+    min-height: 44px;
+  }
+  
+  .key-text {
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 600px) {
+  /* Mobile styles */
   .game-container {
     padding: 8px !important;
   }
   
-  .letter-tile {
-    height: 50px !important;
+  .tile-square {
+    min-height: 50px;
+    max-height: 60px;
   }
   
-  .v-btn.key {
+  .tile-letter {
+    font-size: 1.25rem !important;
+  }
+  
+  .key {
     min-height: 40px;
+  }
+  
+  .key-text {
     font-size: 0.75rem;
   }
+  
+  .header-spacer {
+    width: 96px;
+  }
+}
+
+/* Color overrides for better contrast */
+.v-card.letter-tile.correct {
+  background-color: #538d4e !important;
+  border-color: #538d4e !important;
+}
+
+.v-card.letter-tile.present {
+  background-color: #b59f3b !important;
+  border-color: #b59f3b !important;
+}
+
+.v-card.letter-tile.absent {
+  background-color: #3a3a3c !important;
+  border-color: #3a3a3c !important;
+}
+
+.v-card.letter-tile.filled {
+  background-color: #121213 !important;
+  border-color: #565758 !important;
+}
+
+.v-card.letter-tile.active {
+  background-color: #121213 !important;
+  border-color: #818384 !important;
+}
+
+.v-card.letter-tile.empty {
+  background-color: transparent !important;
+  border-color: #3a3a3c !important;
+}
+
+/* Default tile state */
+.v-card.letter-tile {
+  background-color: transparent !important;
+  border-color: #3a3a3c !important;
 }
 </style>

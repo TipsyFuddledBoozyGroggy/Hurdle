@@ -7,11 +7,12 @@
 html {
   height: 100%;
   overflow-x: hidden;
+  background-color: #121213 !important;
 }
 
 body {
   font-family: 'Arial', sans-serif;
-  background-color: #121213;
+  background-color: #121213 !important;
   color: #ffffff;
   display: flex;
   justify-content: center;
@@ -21,6 +22,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   touch-action: manipulation;
+  margin: 0;
 }
 
 /* Allow body to scroll when definitions are present */
@@ -1394,5 +1396,336 @@ button:disabled {
     min-height: 16px;
     max-height: 25px;
     line-height: 1.1;
+  }
+}
+/* Mobile-First Responsive Design */
+@media (max-width: 768px) {
+  body {
+    padding: 5px;
+    background-color: #121213 !important;
+  }
+  
+  #game-container {
+    gap: 10px;
+    max-width: 100%;
+    padding: 0 5px;
+    background-color: transparent;
+  }
+  
+  header {
+    padding-bottom: 10px;
+    background-color: transparent;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+  
+  .header-top {
+    margin-bottom: 8px;
+  }
+  
+  .hurdle-info {
+    font-size: 0.8rem;
+    justify-content: center;
+    text-align: center;
+    background-color: transparent;
+  }
+  
+  .hurdle-info > * {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  #game-board {
+    margin: 10px 0;
+    background-color: transparent;
+  }
+  
+  .guess-row {
+    gap: 3px;
+  }
+  
+  .letter-tile {
+    font-size: 1.5rem;
+    min-height: 45px;
+    border-width: 1px;
+  }
+  
+  #keyboard {
+    gap: 8px;
+    background-color: transparent;
+  }
+  
+  .keyboard-row {
+    gap: 3px;
+  }
+  
+  .key {
+    padding: 12px 8px;
+    font-size: 0.9rem;
+    min-width: 28px;
+    border-radius: 3px;
+  }
+  
+  .key.wide {
+    padding: 12px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .message-area {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    margin: 8px 0;
+    background-color: rgba(129, 131, 132, 0.9);
+  }
+  
+  #new-game-btn {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    margin: 10px 0;
+  }
+  
+  /* Definition area mobile styles */
+  #definition-area {
+    padding: 12px;
+    margin: 10px 0;
+    background-color: rgba(30, 30, 31, 0.95);
+  }
+  
+  .word-title {
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+  }
+  
+  .definition-item {
+    margin-bottom: 8px;
+  }
+  
+  .definition-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  
+  /* Hurdle score display mobile */
+  .hurdle-score-display {
+    margin: 8px 0;
+  }
+  
+  .score-notification {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  /* Hurdle end summary mobile */
+  .hurdle-end-summary {
+    padding: 12px;
+    margin: 10px 0;
+    background-color: rgba(26, 26, 27, 0.95);
+  }
+  
+  .hurdle-end-summary h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+  }
+  
+  .summary-stats {
+    gap: 8px;
+  }
+  
+  .stat {
+    padding: 8px;
+  }
+  
+  .stat-label {
+    font-size: 0.8rem;
+  }
+  
+  .stat-value {
+    font-size: 1.1rem;
+  }
+  
+  /* Solved words section mobile */
+  .solved-words-section h4 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+  
+  .solved-words-list {
+    gap: 6px;
+  }
+  
+  .solved-word-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  /* Word definition viewer mobile */
+  .word-definition-viewer {
+    margin: 10px 0;
+    padding: 12px;
+    background-color: rgba(26, 26, 27, 0.95);
+  }
+  
+  .definition-header h4 {
+    font-size: 1.2rem;
+  }
+  
+  .close-definition-btn {
+    font-size: 1.2rem;
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 2px;
+    background-color: #121213 !important;
+  }
+  
+  #game-container {
+    gap: 8px;
+    padding: 0 2px;
+    background-color: transparent;
+  }
+  
+  h1 {
+    font-size: 1.6rem;
+  }
+  
+  .hurdle-info {
+    font-size: 0.75rem;
+    flex-direction: column;
+    gap: 4px;
+    background-color: transparent;
+  }
+  
+  .letter-tile {
+    font-size: 1.3rem;
+    min-height: 40px;
+  }
+  
+  .guess-row {
+    gap: 2px;
+  }
+  
+  #keyboard {
+    gap: 6px;
+    background-color: transparent;
+  }
+  
+  .keyboard-row {
+    gap: 2px;
+  }
+  
+  .key {
+    padding: 10px 6px;
+    font-size: 0.8rem;
+    min-width: 24px;
+  }
+  
+  .key.wide {
+    padding: 10px 8px;
+    font-size: 0.7rem;
+  }
+  
+  .message-area {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background-color: rgba(129, 131, 132, 0.9);
+  }
+  
+  #new-game-btn {
+    padding: 10px 16px;
+    font-size: 0.8rem;
+  }
+  
+  .definition-text {
+    font-size: 0.8rem;
+  }
+  
+  .word-title {
+    font-size: 1.1rem;
+  }
+  
+  #definition-area {
+    background-color: rgba(30, 30, 31, 0.95);
+  }
+  
+  .hurdle-end-summary {
+    background-color: rgba(26, 26, 27, 0.95);
+  }
+  
+  .word-definition-viewer {
+    background-color: rgba(26, 26, 27, 0.95);
+  }
+}
+
+/* Landscape orientation adjustments for mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+  #game-container {
+    gap: 5px;
+  }
+  
+  header {
+    padding-bottom: 8px;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  #game-board {
+    margin: 8px 0;
+  }
+  
+  .letter-tile {
+    font-size: 1.2rem;
+    min-height: 35px;
+  }
+  
+  #keyboard {
+    gap: 4px;
+  }
+  
+  .key {
+    padding: 8px 6px;
+    font-size: 0.7rem;
+  }
+  
+  .message-area {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+  
+  #new-game-btn {
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    margin: 5px 0;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .key {
+    min-height: 44px; /* iOS recommended touch target size */
+  }
+  
+  .config-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  #new-game-btn {
+    min-height: 44px;
+  }
+  
+  .solved-word-btn {
+    min-height: 44px;
+  }
+  
+  .close-definition-btn {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
